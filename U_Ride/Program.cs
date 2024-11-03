@@ -5,6 +5,8 @@ using System.Text;
 using U_Ride.Models;
 using U_Ride.Services;
 
+// var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -17,13 +19,11 @@ builder.Services.AddSwaggerGen();
 // Configure CORS policy if needed (optional).
 //builder.Services.AddCors(options =>
 //{
-//    options.AddPolicy("ReactNativePolicy", policy =>
-//    {
-//        policy.WithOrigins("http://localhost:19000") 
-//              .AllowAnyHeader()
-//              .AllowAnyMethod()
-//              .AllowCredentials();
-//    });
+//    options.AddPolicy(name: MyAllowSpecificOrigins,
+//                      policy =>
+//                      {
+//                          policy.WithOrigins("http://127.0.0.1:5500");
+//                      });
 //});
 
 // For Local Database
@@ -67,7 +67,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-//app.UseCors("ReactNativePolicy");
+// app.UseCors(MyAllowSpecificOrigins);
 
 app.UseHttpsRedirection();
 
