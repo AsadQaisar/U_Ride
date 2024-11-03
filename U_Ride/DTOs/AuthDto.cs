@@ -18,5 +18,10 @@
             public string Phone_SeatNumber { get; set; }
             public string Password { get; set; }
         }
+
+        public class HasVehicleDto
+        {
+            public bool Has_Vehicle { get; set; }
+        }
     }
 }

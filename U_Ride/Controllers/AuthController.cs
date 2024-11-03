@@ -70,7 +70,7 @@ namespace U_Ride.Controllers
             var user = await _context.Users.AsNoTracking()
                 .FirstOrDefaultAsync(u => u.SeatNumber == loginDto.Phone_SeatNumber || u.PhoneNumber == loginDto.Phone_SeatNumber);
 
-            if (user == null || _passwordHasher.VerifyHashedPassword(user, user.Password, loginDto.Password) == PasswordVerificationResult.Failed)
+            if (user == null || user.IsActive == false || _passwordHasher.VerifyHashedPassword(user, user.Password, loginDto.Password) == PasswordVerificationResult.Failed)
             {
                 return Unauthorized();
             }
@@ -105,10 +105,42 @@ namespace U_Ride.Controllers
                 user.Department,
                 user.PhoneNumber,
                 user.Gender,
+                user.HasVehicle,
                 user.CreatedOn
             };
 
             return Ok(userInfo);
+        }
+
+        [HttpPut("HasVehicle")]
+        [Authorize]
+        public async Task<IActionResult> GetHasVehicle([FromBody] AuthDto.HasVehicleDto hasVehicleDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest("User ID not found in token");
+            }
+
+            var userId = userIdClaim.Value;
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.UserID == Convert.ToInt16(userId));
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+            user.HasVehicle = hasVehicleDto.Has_Vehicle;
+
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            return Ok("User Updated.");
         }
     }
 }
