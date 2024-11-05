@@ -117,7 +117,9 @@ namespace U_Ride.Controllers
                     existingVehicle.LicensePlate = isDriverDto.LicensePlate;
                     existingVehicle.Year = isDriverDto.Year;
                     existingVehicle.Color = isDriverDto.Color;
+                    existingVehicle.VehicleType = isDriverDto.VehicleType;
                     existingVehicle.SeatCapacity = isDriverDto.SeatCapacity;
+                    existingVehicle.LastModifiedOn = DateTime.UtcNow;
 
                     _context.Vehicles.Update(existingVehicle);
                 }
@@ -132,7 +134,9 @@ namespace U_Ride.Controllers
                         LicensePlate = isDriverDto.LicensePlate,
                         Year = isDriverDto.Year,
                         Color = isDriverDto.Color,
-                        SeatCapacity = isDriverDto.SeatCapacity
+                        VehicleType = isDriverDto.VehicleType,
+                        SeatCapacity = isDriverDto.SeatCapacity,
+                        CreatedOn = DateTime.UtcNow
                     };
                     await _context.Vehicles.AddAsync(newVehicle);
                 }
@@ -186,7 +190,10 @@ namespace U_Ride.Controllers
                         vehicle.LicensePlate,
                         vehicle.Year,
                         vehicle.Color,
-                        vehicle.SeatCapacity
+                        vehicle.VehicleType,
+                        vehicle.SeatCapacity,
+                        vehicle.CreatedOn,
+                        vehicle.LastModifiedOn
                     } : null
                 };
             }

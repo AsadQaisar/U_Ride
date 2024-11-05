@@ -23,7 +23,13 @@ namespace U_Ride.Models
 
         public string Color { get; set; }
 
+        public string VehicleType { get; set; }
+
         public int SeatCapacity { get; set; }
+
+        public DateTime CreatedOn { get; set; }
+
+        public DateTime LastModifiedOn { get; set; }
 
         public bool IsActive { get; set; } = true;
     }
