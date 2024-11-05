@@ -78,43 +78,11 @@ namespace U_Ride.Controllers
             var token = _tokenService.GenerateToken(user);
             return Ok(new { Token = token });
         }
+       
 
-
-        [HttpGet("Userinfo")]
-        [Authorize] 
-        public async Task<IActionResult> GetUserInfo()
-        {
-            var userIdClaim = User.FindFirst("UserID");
-            if (userIdClaim == null)
-            {
-                return BadRequest("User ID not found in token");
-            }
-
-            var userId = userIdClaim.Value;
-            var user = await _context.Users.AsNoTracking()
-                .FirstOrDefaultAsync(u => u.UserID == Convert.ToInt16(userId));
-            if (user == null)
-            {
-                return NotFound("User not found");
-            }
-
-            var userInfo = new
-            {
-                user.FullName,
-                user.SeatNumber,
-                user.Department,
-                user.PhoneNumber,
-                user.Gender,
-                user.HasVehicle,
-                user.CreatedOn
-            };
-
-            return Ok(userInfo);
-        }
-
-        [HttpPut("HasVehicle")]
+        [HttpPut("IsDriver")]
         [Authorize]
-        public async Task<IActionResult> GetHasVehicle([FromBody] AuthDto.HasVehicleDto hasVehicleDto)
+        public async Task<IActionResult> SetDriverStatus([FromBody] AuthDto.IsDriverDto isDriverDto)
         {
             if (!ModelState.IsValid)
             {
@@ -127,20 +95,117 @@ namespace U_Ride.Controllers
                 return BadRequest("User ID not found in token");
             }
 
-            var userId = userIdClaim.Value;
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.UserID == Convert.ToInt16(userId));
+            var userId = Convert.ToInt32(userIdClaim.Value);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == userId);
             if (user == null)
             {
                 return NotFound("User not found");
             }
 
-            user.HasVehicle = hasVehicleDto.Has_Vehicle;
-
+            user.HasVehicle = isDriverDto.Has_Vehicle;
             _context.Users.Update(user);
+
+            // If the user is a driver, save vehicle details
+            if (user.HasVehicle)
+            {
+                var existingVehicle = await _context.Vehicles.FirstOrDefaultAsync(v => v.UserID == userId);
+                if (existingVehicle != null)
+                {
+                    // Update existing vehicle record
+                    existingVehicle.Make = isDriverDto.Make;
+                    existingVehicle.Model = isDriverDto.Model;
+                    existingVehicle.LicensePlate = isDriverDto.LicensePlate;
+                    existingVehicle.Year = isDriverDto.Year;
+                    existingVehicle.Color = isDriverDto.Color;
+                    existingVehicle.SeatCapacity = isDriverDto.SeatCapacity;
+
+                    _context.Vehicles.Update(existingVehicle);
+                }
+                else
+                {
+                    // Add new vehicle record
+                    var newVehicle = new Vehicle
+                    {
+                        UserID = userId,
+                        Make = isDriverDto.Make,
+                        Model = isDriverDto.Model,
+                        LicensePlate = isDriverDto.LicensePlate,
+                        Year = isDriverDto.Year,
+                        Color = isDriverDto.Color,
+                        SeatCapacity = isDriverDto.SeatCapacity
+                    };
+                    await _context.Vehicles.AddAsync(newVehicle);
+                }
+            }
+
             await _context.SaveChangesAsync();
 
-            return Ok("User Updated.");
+            return Ok("User and vehicle information updated.");
+        }
+
+
+        [HttpGet("Userinfo")]
+        [Authorize]
+        public async Task<IActionResult> GetUserInfo()
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest("User ID not found in token");
+            }
+
+            var userId = Convert.ToInt32(userIdClaim.Value);
+            var user = await _context.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.UserID == userId);
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+            // Check if user has a vehicle and include vehicle information if available
+            object userInfo;
+
+            if (user.HasVehicle)
+            {
+                var vehicle = await _context.Vehicles.AsNoTracking()
+                    .FirstOrDefaultAsync(v => v.UserID == userId);
+
+                userInfo = new
+                {
+                    user.FullName,
+                    user.SeatNumber,
+                    user.Department,
+                    user.PhoneNumber,
+                    user.Gender,
+                    user.HasVehicle,
+                    user.CreatedOn,
+                    Vehicle = vehicle != null ? new
+                    {
+                        vehicle.Make,
+                        vehicle.Model,
+                        vehicle.LicensePlate,
+                        vehicle.Year,
+                        vehicle.Color,
+                        vehicle.SeatCapacity
+                    } : null
+                };
+            }
+            else
+            {
+                userInfo = new
+                {
+                    user.FullName,
+                    user.SeatNumber,
+                    user.Department,
+                    user.PhoneNumber,
+                    user.Gender,
+                    user.HasVehicle,
+                    user.CreatedOn
+                };
+            }
+
+            return Ok(userInfo);
+
         }
     }
 }

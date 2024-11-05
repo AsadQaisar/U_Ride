@@ -19,9 +19,21 @@
             public string Password { get; set; }
         }
 
-        public class HasVehicleDto
+        public class IsDriverDto
         {
             public bool Has_Vehicle { get; set; }
+
+            public string Make { get; set; }
+
+            public string Model { get; set; }
+
+            public string LicensePlate { get; set; }
+
+            public int Year { get; set; }
+
+            public string Color { get; set; }
+
+            public int SeatCapacity { get; set; }
         }
     }
 }
