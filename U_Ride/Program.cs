@@ -33,6 +33,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ApplicationDbContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("CloudConnection")));
 
 builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddScoped<DistanceService>();
 
 // Add JWT authentication
 var jwtSettings = builder.Configuration.GetSection("JWTSettings");
