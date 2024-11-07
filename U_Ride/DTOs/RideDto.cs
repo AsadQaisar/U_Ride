@@ -18,7 +18,7 @@
         {
             public string StartPoint { get; set; } // Expected format: "latitude, longitude"
 
-            public string StopPoint { get; set; }  // Expected format: "latitude, longitude"
+            public string EndPoint { get; set; }  // Expected format: "latitude, longitude"
         }
     }
 }

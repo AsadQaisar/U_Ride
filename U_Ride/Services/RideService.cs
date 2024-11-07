@@ -1,6 +1,6 @@
 ﻿namespace U_Ride.Services
 {
-    public class DistanceService
+    public class RideService
     {
         // Helper method to calculate distance between two points using Haversine formula
         public double CalculateDistance(string startPoint, string stopPoint)
@@ -21,9 +21,24 @@
             return EarthRadiusKm * c;
         }
 
+        // Method to calculate distance between two latitude and longitude points in kilometers using Haversine formula
+        private double CalculateDistanceInKm(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double EarthRadiusKm = 6371.0;
+
+            var dLat = DegreesToRadians(lat2 - lat1);
+            var dLon = DegreesToRadians(lon2 - lon1);
+
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(DegreesToRadians(lat1)) * Math.Cos(DegreesToRadians(lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return EarthRadiusKm * c;
+        }
+
         // Helper method to divide route into interval points
         // double startLat, double startLon, double stopLat, double stopLon, int intervals
-
         public List<(double Latitude, double Longitude)> CalculateIntervalPoints(string startPoint, string stopPoint, int intervals)
         {
             var (startLat, startLon) = ParseCoordinates(startPoint);
@@ -41,10 +56,41 @@
             return intervalPoints;
         }
 
-        // Convert degrees to radians
-        public double DegreesToRadians(double degrees)
+        // Method to check if the student's stop point is within any radius along the driver's route
+        public bool IsPointWithinRouteRadius(string studentStopPoint, List<(double Latitude, double Longitude)> routePoints, double radiusKm)
         {
-            return degrees * Math.PI / 180;
+            var (studentLat, studentLon) = ParseCoordinates(studentStopPoint);
+
+            foreach (var point in routePoints)
+            {
+                double distance = CalculateDistanceInKm(studentLat, studentLon, point.Latitude, point.Longitude);
+
+                // Check if the student's stop point is within the radius of the route point
+                if (distance <= radiusKm)
+                {
+                    return true;
+                }
+            }
+
+            return false; // Return false if no points are within the radius
+        }
+
+        // Method to calculate estimated price based on distance and number of seats
+        public double EstimatePrice(double BaseRatePerKm, double distanceKm, int availableSeats)
+        {
+            if (availableSeats <= 0)
+            {
+                throw new ArgumentException("Available seats must be greater than 0.");
+            }
+
+            // Calculate total cost based on distance and base rate
+            double totalCost = distanceKm * BaseRatePerKm;
+
+            // Divide total cost by the number of available seats for individual share
+            double pricePerSeat = totalCost / availableSeats;
+
+            // Optionally round the price per seat to two decimal places
+            return Math.Round(pricePerSeat, 2);
         }
 
         // Parsing Lat and Long from string
@@ -66,5 +112,10 @@
             throw new FormatException("Invalid coordinate format.");
         }
 
+        // Convert degrees to radians
+        public double DegreesToRadians(double degrees)
+        {
+            return degrees * Math.PI / 180;
+        }
     }
 }
