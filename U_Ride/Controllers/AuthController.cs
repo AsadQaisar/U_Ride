@@ -102,7 +102,7 @@ namespace U_Ride.Controllers
                 return NotFound("User not found");
             }
 
-            user.HasVehicle = isDriverDto.Has_Vehicle;
+            user.HasVehicle = true;
             _context.Users.Update(user);
 
             // If the user is a driver, save vehicle details

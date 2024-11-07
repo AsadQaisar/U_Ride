@@ -21,8 +21,6 @@
 
         public class IsDriverDto
         {
-            public bool Has_Vehicle { get; set; }
-
             public string Make { get; set; }
 
             public string Model { get; set; }
