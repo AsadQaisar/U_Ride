@@ -45,7 +45,7 @@ namespace U_Ride.Controllers
 
             int availableSeats = vehicle.SeatCapacity - 1;
             double baseRatePerKm = 10.0;
-            double price = _rideService.EstimatePrice(baseRatePerKm, distance, availableSeats);
+            double price = _rideService.EstimatePrice(baseRatePerKm, await distance, availableSeats);
 
             // Check if a ride already exists for the user
             var existingRide = await _context.Rides.FirstOrDefaultAsync(r => r.DriverID == userId);

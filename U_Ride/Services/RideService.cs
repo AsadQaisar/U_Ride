@@ -1,12 +1,78 @@
-﻿namespace U_Ride.Services
+﻿using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+using System.Net.Http.Json;
+using Newtonsoft.Json;
+using U_Ride.Data;
+
+namespace U_Ride.Services
 {
     public class RideService
     {
-        // Helper method to calculate distance between two points using Haversine formula
-        public double CalculateDistance(string startPoint, string stopPoint)
+        public async Task<Routes> CalculateRouteDistanceAsync(string startPoint, string stopPoint)
         {
-            var (startLat, startLon) = ParseCoordinates(startPoint);
-            var (stopLat, stopLon) = ParseCoordinates(stopPoint);
+            Data.RouteData myDeserializedClass = null;
+            var (startLat, startLon) = await ParseCoordinates(startPoint);
+            var (stopLat, stopLon) = await ParseCoordinates(stopPoint);
+
+            using var client = new HttpClient();
+            client.BaseAddress = new Uri("https://api.openrouteservice.org/");
+            client.DefaultRequestHeaders.Add("Authorization", "5b3ce3597851110001cf6248c5d5515ab68c4a2d80976dabe92b7787");
+
+            var routeRequest = new
+            {
+                coordinates = new[] { new[] { startLon, startLat }, new[] { stopLon, stopLat } },
+                instructions = false
+            };
+
+            var response = await client.PostAsJsonAsync("v2/directions/driving-car", routeRequest);
+            //response.EnsureSuccessStatusCode();
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+                myDeserializedClass = JsonConvert.DeserializeObject<Data.RouteData>(jsonResponse);
+            }
+            return myDeserializedClass?.routes?.FirstOrDefault() ?? null;
+        }
+
+        // Decode Polyline
+        public List<(double Lat, double Lon)> DecodePolyline(string encodedPolyline)
+        {
+            var polylinePoints = new List<(double Lat, double Lon)>();
+            int index = 0, len = encodedPolyline.Length;
+            int lat = 0, lon = 0;
+
+            while (index < len)
+            {
+                int result = 1, shift = 0, b;
+                do
+                {
+                    b = encodedPolyline[index++] - 63 - 1;
+                    result += b << shift;
+                    shift += 5;
+                } while (b >= 0x1f);
+                lat += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+
+                result = 1;
+                shift = 0;
+                do
+                {
+                    b = encodedPolyline[index++] - 63 - 1;
+                    result += b << shift;
+                    shift += 5;
+                } while (b >= 0x1f);
+                lon += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+
+                polylinePoints.Add((lat * 1e-5, lon * 1e-5));
+            }
+
+            return polylinePoints;
+        }
+
+        // Helper method to calculate distance between two points using Haversine formula
+        public async Task<double> CalculateDistance(string startPoint, string stopPoint)
+        {
+            var (startLat, startLon) = await ParseCoordinates(startPoint);
+            var (stopLat, stopLon) = await ParseCoordinates(stopPoint);
 
             const double EarthRadiusKm = 6371.0;
 
@@ -37,12 +103,49 @@
             return EarthRadiusKm * c;
         }
 
+        // Points on Route
+        public List<(double Lat, double Lon)> GetIntermediatePoints(List<(double Lat, double Lon)> routePoints, double totalDistance, int numPoints)
+        {
+            var points = new List<(double Lat, double Lon)>();
+            double segmentDistance = totalDistance / (numPoints - 1);
+
+            double accumulatedDistance = 0;
+            points.Add(routePoints[0]); // Start point
+
+            for (int i = 1; i < routePoints.Count && points.Count < numPoints; i++)
+            {
+                var (prevLat, prevLon) = routePoints[i - 1];
+                var (currentLat, currentLon) = routePoints[i];
+
+                double segment = CalculateDistanceInKm(prevLat, prevLon, currentLat, currentLon);
+
+                accumulatedDistance += segment;
+
+                if (accumulatedDistance >= segmentDistance)
+                {
+                    double excess = accumulatedDistance - segmentDistance;
+                    double ratio = (segment - excess) / segment;
+
+                    double interpolatedLat = prevLat + ratio * (currentLat - prevLat);
+                    double interpolatedLon = prevLon + ratio * (currentLon - prevLon);
+
+                    points.Add((interpolatedLat, interpolatedLon));
+
+                    accumulatedDistance = excess;
+                }
+            }
+
+            points.Add(routePoints.Last()); // End point
+            return points;
+        }
+
+
         // Helper method to divide route into interval points
         // double startLat, double startLon, double stopLat, double stopLon, int intervals
-        public List<(double Latitude, double Longitude)> CalculateIntervalPoints(string startPoint, string stopPoint, int intervals)
+        public async Task<List<(double Latitude, double Longitude)>> CalculateIntervalPoints(string startPoint, string stopPoint, int intervals)
         {
-            var (startLat, startLon) = ParseCoordinates(startPoint);
-            var (stopLat, stopLon) = ParseCoordinates(stopPoint);
+            var (startLat, startLon) = await ParseCoordinates(startPoint);
+            var (stopLat, stopLon) = await ParseCoordinates(stopPoint);
 
             var intervalPoints = new List<(double Latitude, double Longitude)>();
 
@@ -57,9 +160,9 @@
         }
 
         // Method to check if the student's stop point is within any radius along the driver's route
-        public bool IsPointWithinRouteRadius(string studentStopPoint, List<(double Latitude, double Longitude)> routePoints, double radiusKm)
+        public async Task<bool> IsPointWithinRouteRadius(string studentStopPoint, List<(double Latitude, double Longitude)> routePoints, double radiusKm)
         {
-            var (studentLat, studentLon) = ParseCoordinates(studentStopPoint);
+            var (studentLat, studentLon) = await ParseCoordinates(studentStopPoint);
 
             foreach (var point in routePoints)
             {
@@ -94,7 +197,7 @@
         }
 
         // Parsing Lat and Long from string
-        public (double Latitude, double Longitude) ParseCoordinates(string coordinates)
+        public async Task<(double Latitude, double Longitude)> ParseCoordinates(string coordinates)
         {
             // Remove the parentheses and split the string by the comma
             var cleanedCoordinates = coordinates.Trim('(', ')');

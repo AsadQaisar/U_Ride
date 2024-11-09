@@ -30,22 +30,22 @@ namespace U_Ride.Controllers
             int intervals = 4;
             double searchRadiusKm = 4.0;
 
-            var matchingRides = new List<Ride>();
+            var matchingRides = new List<Ride>(); 
 
             foreach (var ride in rides)
             {
                 // Calculate interval points along the ride route
-                var intervalPoints = _rideService.CalculateIntervalPoints(ride.StartPoint, ride.EndPoint, intervals);
+                var intervalPoints = await _rideService.CalculateIntervalPoints(ride.StartPoint, ride.EndPoint, intervals);
 
                 // Create a list of route points for radius checking
                 var routePoints = intervalPoints.Select(point => (point.Latitude, point.Longitude)).ToList();
 
                 // Add the endpoint to the route points for radius checking
-                var (stopLat, stopLon) = _rideService.ParseCoordinates(ride.EndPoint);
+                var (stopLat, stopLon) = await _rideService.ParseCoordinates(ride.EndPoint);
                 routePoints.Add((stopLat, stopLon));
 
                 // Check if the student's endpoint falls within any of the driver's radius points
-                if (_rideService.IsPointWithinRouteRadius(coordinatesDto.EndPoint, routePoints, searchRadiusKm))
+                if (await _rideService.IsPointWithinRouteRadius(coordinatesDto.EndPoint, routePoints, searchRadiusKm))
                 {
                     matchingRides.Add(ride);
                 }
@@ -54,6 +54,24 @@ namespace U_Ride.Controllers
             return Ok(matchingRides);
         }
 
+
+        [HttpGet("Ride_Calculation")]
+        public async Task<IActionResult> RideCalculation([FromBody] RideDto.GeoCoordinatesDto coordinatesDto)
+        {
+            var distance = await _rideService.CalculateRouteDistanceAsync(coordinatesDto.StartPoint, coordinatesDto.EndPoint);
+            if (distance is not null)
+            {
+                var decodedPoints = _rideService.DecodePolyline(distance.geometry);
+                var intermediatePoints = _rideService.GetIntermediatePoints(decodedPoints, distance.summary.distance, 5);
+
+                // Step 3: Add radius to each point
+                var pointsWithRadius = intermediatePoints
+                    .Select(point => (point.Lat, point.Lon, Radius: 2000))
+                    .ToList();
+                return Ok(pointsWithRadius);
+            }
+            return BadRequest();
+        }
 
         //[HttpPost("BookRide")]
         //public async Task<IActionResult> BookRide(int rideId, int studentId)

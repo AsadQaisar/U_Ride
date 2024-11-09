@@ -1,4 +1,6 @@
-﻿namespace U_Ride.DTOs
+﻿using Azure.Core.GeoJson;
+
+namespace U_Ride.DTOs
 {
     public class RideDto
     {
@@ -20,5 +22,19 @@
 
             public string EndPoint { get; set; }  // Expected format: "latitude, longitude"
         }
+
+        public class RouteInfo
+        {
+            public double Distance { get; set; }
+            
+            public double Duration { get; set; }
+            
+            public List<double> BoundingBox { get; set; }
+            
+            public string Geometry { get; set; }
+            
+            public List<int> WayPoints { get; set; }
+        }
+
     }
 }
