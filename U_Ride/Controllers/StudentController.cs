@@ -27,25 +27,25 @@ namespace U_Ride.Controllers
         public async Task<IActionResult> SearchRides([FromBody] RideDto.GeoCoordinatesDto coordinatesDto)
         {
             var rides = await _context.Rides.Where(r => r.IsAvailable == true).ToListAsync();
-            int intervals = 4;
-            double searchRadiusKm = 4.0;
+            // int intervals = 4;
+            double searchRadiuskm = 2.0;
 
             var matchingRides = new List<Ride>(); 
 
             foreach (var ride in rides)
             {
-                // Calculate interval points along the ride route
-                var intervalPoints = await _rideService.CalculateIntervalPoints(ride.StartPoint, ride.EndPoint, intervals);
+                // Step # 1 Find Route Info
+                var routeinfo = await _rideService.CalculateRouteDistanceAsync(ride.StartPoint, ride.EndPoint);
 
-                // Create a list of route points for radius checking
-                var routePoints = intervalPoints.Select(point => (point.Latitude, point.Longitude)).ToList();
+                // Step # 2 Decode Polyline
+                var decodedPoints = _rideService.DecodePolyline(routeinfo.geometry);
 
-                // Add the endpoint to the route points for radius checking
-                var (stopLat, stopLon) = await _rideService.ParseCoordinates(ride.EndPoint);
-                routePoints.Add((stopLat, stopLon));
+                // Step 3: Find the closest point within the search radius
+                var endCoordinates = await _rideService.ParseCoordinates(coordinatesDto.EndPoint);
+                var closestPoint = _rideService.GetClosestPointWithinRadius(decodedPoints, endCoordinates, searchRadiuskm);
 
-                // Check if the student's endpoint falls within any of the driver's radius points
-                if (await _rideService.IsPointWithinRouteRadius(coordinatesDto.EndPoint, routePoints, searchRadiusKm))
+                // If a closest point within the radius is found, add the ride to matching rides
+                if (closestPoint != null)
                 {
                     matchingRides.Add(ride);
                 }
@@ -62,6 +62,8 @@ namespace U_Ride.Controllers
             if (distance is not null)
             {
                 var decodedPoints = _rideService.DecodePolyline(distance.geometry);
+                var encodedPolyline = _rideService.EncodePolyline(decodedPoints);
+                // var geometry = await _rideService.GetRouteGeoJsonAsync(decodedPoints);
                 var intermediatePoints = _rideService.GetIntermediatePoints(decodedPoints, distance.summary.distance, 5);
 
                 // Step 3: Add radius to each point

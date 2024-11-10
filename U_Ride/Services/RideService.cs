@@ -3,11 +3,13 @@ using System.Text.Json;
 using System.Net.Http.Json;
 using Newtonsoft.Json;
 using U_Ride.Data;
+using System.Text;
 
 namespace U_Ride.Services
 {
     public class RideService
     {
+        // Generate Route Info From Start and End Coordinates Using External Service API
         public async Task<Routes> CalculateRouteDistanceAsync(string startPoint, string stopPoint)
         {
             Data.RouteData myDeserializedClass = null;
@@ -66,6 +68,92 @@ namespace U_Ride.Services
             }
 
             return polylinePoints;
+        }
+
+        // Encode Polyline
+        public string EncodePolyline(List<(double Lat, double Lon)> coordinates)
+        {
+            var encoded = new StringBuilder();
+            int prevLat = 0, prevLon = 0;
+
+            foreach (var (lat, lon) in coordinates)
+            {
+                int currentLat = (int)Math.Round(lat * 1e5);
+                int currentLon = (int)Math.Round(lon * 1e5);
+
+                int deltaLat = currentLat - prevLat;
+                int deltaLon = currentLon - prevLon;
+
+                encoded.Append(EncodeSignedValue(deltaLat));
+                encoded.Append(EncodeSignedValue(deltaLon));
+
+                prevLat = currentLat;
+                prevLon = currentLon;
+            }
+
+            return encoded.ToString();
+        }
+        private string EncodeSignedValue(int value)
+        {
+            int sgnNum = value << 1;
+            if (value < 0)
+            {
+                sgnNum = ~sgnNum;
+            }
+            return EncodeUnsignedValue(sgnNum);
+        }
+        private string EncodeUnsignedValue(int value)
+        {
+            var encoded = new StringBuilder();
+            while (value >= 0x20)
+            {
+                encoded.Append((char)((0x20 | (value & 0x1f)) + 63));
+                value >>= 5;
+            }
+            encoded.Append((char)(value + 63));
+            return encoded.ToString();
+        }
+
+        // Find the Student's End Point if it lies within n'th KM of Driver's route 
+        public ((double Lat, double Lon)? Point, double Distance)? GetClosestPointWithinRadius(List<(double Lat, double Lon)> points,(double Lat, double Lon) endPoint,double radiusKm)
+        {
+            (double Lat, double Lon)? closestPoint = null;
+            double minDistance = double.MaxValue;
+
+            foreach (var point in points)
+            {
+                var distance = CalculateDistanceInKm(point.Lat, point.Lon, endPoint.Lat, endPoint.Lon);
+
+                // Check if the point is within the radius and closer than the current minimum distance
+                if (distance <= radiusKm && distance < minDistance)
+                {
+                    minDistance = distance;
+                    closestPoint = point;
+                }
+            }
+
+            return closestPoint != null ? ((Lat: closestPoint.Value.Lat, Lon: closestPoint.Value.Lon), minDistance) : null;
+        }
+
+        // Geo Route From Decoded Polyline Using External API
+        public async Task<string> GetRouteGeoJsonAsync(List<(double Lat, double Lon)> coordinates)
+        {
+            using var client = new HttpClient();
+            client.BaseAddress = new Uri("https://api.openrouteservice.org/");
+            client.DefaultRequestHeaders.Add("Authorization", "5b3ce3597851110001cf6248c5d5515ab68c4a2d80976dabe92b7787");
+
+            // Convert the list of coordinates to the expected format
+            var routeRequest = new
+            {
+                coordinates = coordinates.Select(c => new[] { c.Lon, c.Lat }).ToArray()
+            };
+
+            // Send the request to the /geojson endpoint
+            var response = await client.PostAsJsonAsync("v2/directions/driving-car/geojson", routeRequest);
+            response.EnsureSuccessStatusCode();
+
+            // Return the GeoJSON string
+            return await response.Content.ReadAsStringAsync();
         }
 
         // Helper method to calculate distance between two points using Haversine formula
@@ -175,7 +263,7 @@ namespace U_Ride.Services
                 }
             }
 
-            return false; // Return false if no points are within the radius
+            return false;
         }
 
         // Method to calculate estimated price based on distance and number of seats
