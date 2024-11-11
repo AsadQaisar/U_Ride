@@ -14,7 +14,9 @@ namespace U_Ride.Models
         public string StartPoint { get; set; }
         
         public string EndPoint { get; set; }
-        
+
+        public string? EncodedPolyline { get; set; }
+
         public double? Price { get; set; }
         
         public int AvailableSeats { get; set; }
