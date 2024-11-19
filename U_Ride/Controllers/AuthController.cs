@@ -148,7 +148,7 @@ namespace U_Ride.Controllers
         }
 
 
-        [HttpGet("Userinfo")]
+        [HttpGet("UserInfo")]
         [Authorize]
         public async Task<IActionResult> GetUserInfo()
         {

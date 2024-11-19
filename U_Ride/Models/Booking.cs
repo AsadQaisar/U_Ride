@@ -8,11 +8,9 @@ namespace U_Ride.Models
         [Key]
         public int BookingID { get; set; }
 
-        [ForeignKey("RideID")]
         public int RideID { get; set; }
 
-        [ForeignKey("UserID")]
-        public int StudentID { get; set; }
+        public int UserID { get; set; }
         
         public DateTime BookingDate { get; set; }
     }

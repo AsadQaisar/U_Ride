@@ -48,13 +48,14 @@ namespace U_Ride.Controllers
             double price = _rideService.EstimatePrice(baseRatePerKm, await distance, availableSeats);
 
             // Check if a ride already exists for the user
-            var existingRide = await _context.Rides.FirstOrDefaultAsync(r => r.DriverID == userId);
+            var existingRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
 
             if (existingRide != null)
             {
                 // Update existing ride
                 existingRide.StartPoint = coordinatesDto.StartPoint;
                 existingRide.EndPoint = coordinatesDto.EndPoint;
+                existingRide.EncodedPolyline = coordinatesDto.EncodedPolyline;
                 existingRide.AvailableSeats = availableSeats;
                 existingRide.Price = price;
                 existingRide.LastModifiedOn = DateTime.UtcNow; 
@@ -64,9 +65,10 @@ namespace U_Ride.Controllers
                 // Create new ride
                 var newRide = new Ride
                 {
-                    DriverID = userId,
+                    UserID = userId,
                     StartPoint = coordinatesDto.StartPoint,
                     EndPoint = coordinatesDto.EndPoint,
+                    EncodedPolyline = coordinatesDto.EncodedPolyline,
                     AvailableSeats = availableSeats,
                     Price = price,
                     CreatedOn = DateTime.UtcNow
@@ -79,36 +81,6 @@ namespace U_Ride.Controllers
 
             return Ok(new { Message = "Ride posted successfully." });
 
-
-            //// Step 1: Calculate distance between start and stop points
-            //// var distance = _distanceService.CalculateDistance(coordinatesDto.StartLatitude, coordinatesDto.StartLongitude, coordinatesDto.StopLatitude, coordinatesDto.StopLongitude);
-            //var distance = _rideService.CalculateDistance(coordinatesDto.StartPoint, coordinatesDto.StopPoint);
-
-            //// var points = _distanceService.CalculateIntervalPoints(coordinatesDto.StartLatitude, coordinatesDto.StartLongitude, coordinatesDto.StopLatitude, coordinatesDto.StopLongitude, 4);
-            //// Step 2: Divide the route into interval points, excluding the stop point
-            //int intervals = 4;
-            //var intervalPoints = _rideService.CalculateIntervalPoints(coordinatesDto.StartPoint, coordinatesDto.StopPoint, intervals);
-
-
-            //// Step 3: Create 4-km radius around each interval point
-            //var radiusPoints = intervalPoints.Select(point => new
-            //{
-            //    Latitude = point.Latitude,
-            //    Longitude = point.Longitude,
-            //    RadiusKm = 4
-            //}).ToList();
-
-            //// Step 4: Add the stop point with a 4-km radius
-            //var (stopLat, stopLon) = _rideService.ParseCoordinates(coordinatesDto.StopPoint);
-            //radiusPoints.Add(new
-            //{
-            //    Latitude = stopLat,
-            //    Longitude = stopLon,
-            //    RadiusKm = 4
-            //});
-
-            //// Return the interval points and stop point with their radii
-            //return Ok(radiusPoints);
         }
 
         [HttpPost("UpdateSeats")]

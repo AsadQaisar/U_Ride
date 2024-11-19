@@ -12,8 +12,8 @@ using U_Ride.Models;
 namespace U_Ride.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241107174028_Version_4")]
-    partial class Version_4
+    [Migration("20241115203113_Version_1")]
+    partial class Version_1
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,6 +25,70 @@ namespace U_Ride.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("U_Ride.Models.Booking", b =>
+                {
+                    b.Property<int>("BookingID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BookingID"));
+
+                    b.Property<DateTime>("BookingDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RideID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StudentID")
+                        .HasColumnType("int");
+
+                    b.HasKey("BookingID");
+
+                    b.ToTable("Bookings");
+                });
+
+            modelBuilder.Entity("U_Ride.Models.Ride", b =>
+                {
+                    b.Property<int>("RideID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RideID"));
+
+                    b.Property<int>("AvailableSeats")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DriverID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EncodedPolyline")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EndPoint")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastModifiedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double?>("Price")
+                        .HasColumnType("float");
+
+                    b.Property<string>("StartPoint")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("RideID");
+
+                    b.ToTable("Rides");
+                });
+
             modelBuilder.Entity("U_Ride.Models.User", b =>
                 {
                     b.Property<int>("UserID")
@@ -33,11 +97,17 @@ namespace U_Ride.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserID"));
 
+                    b.Property<int?>("BookingID")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Department")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<double>("DriverRating")
+                        .HasColumnType("float");
 
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
@@ -66,10 +136,17 @@ namespace U_Ride.Migrations
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("RideID")
+                        .HasColumnType("int");
+
                     b.Property<string>("SeatNumber")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("UserID");
+
+                    b.HasIndex("BookingID");
+
+                    b.HasIndex("RideID");
 
                     b.ToTable("Users");
                 });
@@ -122,25 +199,39 @@ namespace U_Ride.Migrations
 
                     b.HasKey("VehicleID");
 
-                    b.HasIndex("UserID");
+                    b.HasIndex("UserID")
+                        .IsUnique();
 
                     b.ToTable("Vehicles");
                 });
 
+            modelBuilder.Entity("U_Ride.Models.User", b =>
+                {
+                    b.HasOne("U_Ride.Models.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingID");
+
+                    b.HasOne("U_Ride.Models.Ride", "Ride")
+                        .WithMany()
+                        .HasForeignKey("RideID");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Ride");
+                });
+
             modelBuilder.Entity("U_Ride.Models.Vehicle", b =>
                 {
-                    b.HasOne("U_Ride.Models.User", "User")
-                        .WithMany("Vehicles")
-                        .HasForeignKey("UserID")
+                    b.HasOne("U_Ride.Models.User", null)
+                        .WithOne("Vehicle")
+                        .HasForeignKey("U_Ride.Models.Vehicle", "UserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("U_Ride.Models.User", b =>
                 {
-                    b.Navigation("Vehicles");
+                    b.Navigation("Vehicle");
                 });
 #pragma warning restore 612, 618
         }

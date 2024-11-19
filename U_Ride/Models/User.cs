@@ -5,8 +5,7 @@ namespace U_Ride.Models
 {
     public class User
     {
-        [Key]
-        
+        [Key]       
         public int UserID { get; set; }
         
         public string FullName { get; set; }
@@ -28,9 +27,15 @@ namespace U_Ride.Models
         public DateTime LastModifiedOn { get; set; }
         
         public bool HasVehicle { get; set; }
+
+        public double DriverRating { get; set; }
         
         public bool IsActive { get; set; }
 
-        public virtual ICollection<Vehicle> Vehicles { get; set; }
+        public Ride? Ride { get; set; }
+
+        public Booking? Booking { get; set; }
+
+        public Vehicle? Vehicle { get; set; }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using U_Ride.DTOs;
 using U_Ride.Models;
@@ -24,30 +25,103 @@ namespace U_Ride.Controllers
         }
 
         [HttpGet("SearchRides")]
+        [Authorize]
         public async Task<IActionResult> SearchRides([FromBody] RideDto.GeoCoordinatesDto coordinatesDto)
         {
-            var rides = await _context.Rides.Where(r => r.IsAvailable == true).ToListAsync();
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest("User ID not found in token");
+            }
+
+            var userId = Convert.ToInt32(userIdClaim.Value);
+
+            // Check if a ride already exists for the user
+            var existingRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
+
+            if (existingRide != null)
+            {
+                // Update existing ride
+                existingRide.StartPoint = coordinatesDto.StartPoint;
+                existingRide.EndPoint = coordinatesDto.EndPoint;
+                existingRide.EncodedPolyline = coordinatesDto.EncodedPolyline;
+                existingRide.LastModifiedOn = DateTime.UtcNow;
+            }
+            else
+            {
+                // Create new ride
+                var newRide = new Ride
+                {
+                    UserID = userId,
+                    StartPoint = coordinatesDto.StartPoint,
+                    EndPoint = coordinatesDto.EndPoint,
+                    EncodedPolyline = coordinatesDto.EncodedPolyline,
+                    IsDriver = false,
+                    CreatedOn = DateTime.UtcNow
+                };
+                await _context.Rides.AddAsync(newRide);
+            }
+            await _context.SaveChangesAsync();
+
+            // Search Ride
+            var drivers = await _context.Users
+                .Where(h => h.HasVehicle == true)  
+                .Include(r => r.Ride)              
+                .Include(v => v.Vehicle)          
+                .AsNoTracking()
+                .ToListAsync();
+
+            // Filter to only available rides with encoded polyline
+            var rides = drivers.Where(h => h.Ride != null && h.Ride.IsAvailable == true && h.Ride.EncodedPolyline != null)
+                               .ToList();
+
             // int intervals = 4;
             double searchRadiuskm = 2.0;
 
-            var matchingRides = new List<Ride>(); 
+            var matchingRides = new List<Root>(); 
 
             foreach (var ride in rides)
             {
                 // Step # 1 Find Route Info
-                var routeinfo = await _rideService.CalculateRouteDistanceAsync(ride.StartPoint, ride.EndPoint);
+                // var routeinfo = await _rideService.CRalculateRouteDistanceAsync(ride.StartPoint, ride.EndPoint);
 
                 // Step # 2 Decode Polyline
-                var decodedPoints = _rideService.DecodePolyline(routeinfo.geometry);
+                var decodedPoints = _rideService.DecodePolyline(ride.Ride.EncodedPolyline);
 
                 // Step 3: Find the closest point within the search radius
                 var endCoordinates = await _rideService.ParseCoordinates(coordinatesDto.EndPoint);
-                var closestPoint = _rideService.GetClosestPointWithinRadius(decodedPoints, endCoordinates, searchRadiuskm);
+
+                var closestPoint = _rideService.GetPointsWithinRadiusAndClosest(decodedPoints, endCoordinates, searchRadiuskm);
 
                 // If a closest point within the radius is found, add the ride to matching rides
-                if (closestPoint != null)
+                if (closestPoint.PointsWithinRadius.Count != 0)
                 {
-                    matchingRides.Add(ride);
+                    var driverInfo = new DriverInfo
+                    {
+                        FullName = ride.FullName,
+                        Gender = ride.Gender,
+                        PhoneNumber = ride.PhoneNumber
+                    };
+                    var rideInfo = new RideInfo
+                    {
+                        RouteMatched = closestPoint.PointsWithinRadius.Count,
+                        Price = ride.Ride.Price.ToString(), 
+                        AvailableSeats = ride.Ride.AvailableSeats.ToString()
+                    };
+                    var vehicleInfo = new VehicleInfo
+                    {
+                        VehicleType = ride.Vehicle.VehicleType,    // Vehicle Type from the Vehicle table
+                        Make_Model = ($"{ ride.Vehicle.Color} {ride.Vehicle.Make} {ride.Vehicle.Model}"),
+                        LicensePlate = ride.Vehicle.LicensePlate
+                    };
+                    var root = new Root
+                    {
+                        RideInfo = rideInfo,
+                        DriverInfo = driverInfo,
+                        VehicleInfo = vehicleInfo
+                    };
+
+                    matchingRides.Add(root);
                 }
             }
 
@@ -64,13 +138,22 @@ namespace U_Ride.Controllers
                 var decodedPoints = _rideService.DecodePolyline(distance.geometry);
                 var encodedPolyline = _rideService.EncodePolyline(decodedPoints);
                 // var geometry = await _rideService.GetRouteGeoJsonAsync(decodedPoints);
+
+                // Verfying Encoded Polylone
+                // ======================================================================================
+                //var startPoint = $"{decodedPoints[0].Lat},{decodedPoints[0].Lon}";
+                //var endPoint = $"{decodedPoints[^1].Lat},{decodedPoints[^1].Lon}";
+
+                //var routeInfo = await _rideService.CalculateRouteDistanceAsync(startPoint, endPoint);
+                // ======================================================================================
+
                 var intermediatePoints = _rideService.GetIntermediatePoints(decodedPoints, distance.summary.distance, 5);
 
                 // Step 3: Add radius to each point
                 var pointsWithRadius = intermediatePoints
                     .Select(point => (point.Lat, point.Lon, Radius: 2000))
                     .ToList();
-                return Ok(pointsWithRadius);
+                return Ok(distance);
             }
             return BadRequest();
         }
@@ -99,5 +182,14 @@ namespace U_Ride.Controllers
         //    return Ok(new { Message = "Booking successful.", RideId = rideId, AvailableSeats = ride.AvailableSeats });
         //}
 
+        //[NonAction]
+        //public void PopulateUser()
+        //{
+        //    var Tbl_User = _context.Categories.Where(m => m.UserId == Global_Variables.LoginID).ToList();
+        //    var CategoryCollection = _context.Categories.ToList();
+        //    Category DefaultCategory = new Category() { CategoryId = 0, Title = "Choose a Category" };
+        //    Tbl_User.Insert(0, DefaultCategory);
+        //    ViewBag.Categories = Tbl_User;
+        //}
     }
 }

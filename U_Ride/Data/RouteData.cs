@@ -43,5 +43,18 @@
         public double distance { get; set; }
         public double duration { get; set; }
     }
+
+    public class PointInfo
+    {
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double DistanceFromEndpoint { get; set; }
+    }
+
+    public class RadiusResult
+    {
+        public List<PointInfo> PointsWithinRadius { get; set; } = new List<PointInfo>();
+        public PointInfo ClosestPoint { get; set; }
+    }
 }
 

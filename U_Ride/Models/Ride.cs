@@ -8,8 +8,7 @@ namespace U_Ride.Models
         [Key]
         public int RideID { get; set; }
 
-        [ForeignKey("UserID")]
-        public int DriverID { get; set; }
+        public int UserID { get; set; }
         
         public string StartPoint { get; set; }
         
@@ -17,16 +16,17 @@ namespace U_Ride.Models
 
         public string? EncodedPolyline { get; set; }
 
+        public bool IsDriver { get; set; } = true;
+
         public double? Price { get; set; }
         
-        public int AvailableSeats { get; set; }
+        public int? AvailableSeats { get; set; }
 
-        public bool IsAvailable { get; set; } = true; // e.g., "Available", "Full"
+        public bool IsAvailable { get; set; } = true;
 
         public DateTime CreatedOn { get; set; }
 
         public DateTime LastModifiedOn { get; set; }
 
-        public virtual ICollection<Vehicle> Vehicles { get; set; }
     }
 }

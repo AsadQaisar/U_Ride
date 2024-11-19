@@ -114,7 +114,7 @@ namespace U_Ride.Services
             return encoded.ToString();
         }
 
-        // Find the Student's End Point if it lies within n'th KM of Driver's route 
+        // Find the Student's End Point if it lies within n'th KM of Driver's route (APPROACH # 1)
         public ((double Lat, double Lon)? Point, double Distance)? GetClosestPointWithinRadius(List<(double Lat, double Lon)> points,(double Lat, double Lon) endPoint,double radiusKm)
         {
             (double Lat, double Lon)? closestPoint = null;
@@ -133,6 +133,43 @@ namespace U_Ride.Services
             }
 
             return closestPoint != null ? ((Lat: closestPoint.Value.Lat, Lon: closestPoint.Value.Lon), minDistance) : null;
+        }
+
+        // Find the Student's End Point if it lies within n'th KM of Driver's route (APPROACH # 2)
+        public RadiusResult GetPointsWithinRadiusAndClosest(List<(double Lat, double Lon)> points, (double Lat, double Lon) endPoint, double radiusKm)
+        {
+            var result = new RadiusResult();
+            double minDistance = double.MaxValue;
+
+            foreach (var point in points)
+            {
+                var distance = CalculateDistanceInKm(point.Lat, point.Lon, endPoint.Lat, endPoint.Lon);
+
+                // If the point is within the radius, add it to the PointsWithinRadius list
+                if (distance <= radiusKm)
+                {
+                    result.PointsWithinRadius.Add(new PointInfo
+                    {
+                        Latitude = point.Lat,
+                        Longitude = point.Lon,
+                        DistanceFromEndpoint = distance
+                    });
+                }
+
+                // Check if this point is the closest one
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    result.ClosestPoint = new PointInfo
+                    {
+                        Latitude = point.Lat,
+                        Longitude = point.Lon,
+                        DistanceFromEndpoint = distance
+                    };
+                }
+            }
+
+            return result;
         }
 
         // Geo Route From Decoded Polyline Using External API

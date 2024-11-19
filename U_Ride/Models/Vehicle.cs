@@ -8,10 +8,7 @@ namespace U_Ride.Models
         [Key]
         public int VehicleID { get; set; }
 
-        [ForeignKey("UserID")]
         public int UserID { get; set; }
-
-        public virtual User User { get; set; }
 
         public string Make { get; set; } 
 

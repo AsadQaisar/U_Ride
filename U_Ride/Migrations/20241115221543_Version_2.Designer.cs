@@ -12,8 +12,8 @@ using U_Ride.Models;
 namespace U_Ride.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241111211756_Version_8")]
-    partial class Version_8
+    [Migration("20241115221543_Version_2")]
+    partial class Version_2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -39,10 +39,13 @@ namespace U_Ride.Migrations
                     b.Property<int>("RideID")
                         .HasColumnType("int");
 
-                    b.Property<int>("StudentID")
+                    b.Property<int>("UserID")
                         .HasColumnType("int");
 
                     b.HasKey("BookingID");
+
+                    b.HasIndex("UserID")
+                        .IsUnique();
 
                     b.ToTable("Bookings");
                 });
@@ -60,9 +63,6 @@ namespace U_Ride.Migrations
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");
-
-                    b.Property<int>("DriverID")
-                        .HasColumnType("int");
 
                     b.Property<string>("EncodedPolyline")
                         .HasColumnType("nvarchar(max)");
@@ -84,7 +84,13 @@ namespace U_Ride.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("UserID")
+                        .HasColumnType("int");
+
                     b.HasKey("RideID");
+
+                    b.HasIndex("UserID")
+                        .IsUnique();
 
                     b.ToTable("Rides");
                 });
@@ -102,6 +108,9 @@ namespace U_Ride.Migrations
 
                     b.Property<string>("Department")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<double>("DriverRating")
+                        .HasColumnType("float");
 
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
@@ -171,9 +180,6 @@ namespace U_Ride.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("RideID")
-                        .HasColumnType("int");
-
                     b.Property<int>("SeatCapacity")
                         .HasColumnType("int");
 
@@ -189,36 +195,46 @@ namespace U_Ride.Migrations
 
                     b.HasKey("VehicleID");
 
-                    b.HasIndex("RideID");
-
-                    b.HasIndex("UserID");
+                    b.HasIndex("UserID")
+                        .IsUnique();
 
                     b.ToTable("Vehicles");
                 });
 
-            modelBuilder.Entity("U_Ride.Models.Vehicle", b =>
+            modelBuilder.Entity("U_Ride.Models.Booking", b =>
                 {
-                    b.HasOne("U_Ride.Models.Ride", null)
-                        .WithMany("Vehicles")
-                        .HasForeignKey("RideID");
-
-                    b.HasOne("U_Ride.Models.User", "User")
-                        .WithMany("Vehicles")
-                        .HasForeignKey("UserID")
+                    b.HasOne("U_Ride.Models.User", null)
+                        .WithOne("Booking")
+                        .HasForeignKey("U_Ride.Models.Booking", "UserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("U_Ride.Models.Ride", b =>
                 {
-                    b.Navigation("Vehicles");
+                    b.HasOne("U_Ride.Models.User", null)
+                        .WithOne("Ride")
+                        .HasForeignKey("U_Ride.Models.Ride", "UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("U_Ride.Models.Vehicle", b =>
+                {
+                    b.HasOne("U_Ride.Models.User", null)
+                        .WithOne("Vehicle")
+                        .HasForeignKey("U_Ride.Models.Vehicle", "UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("U_Ride.Models.User", b =>
                 {
-                    b.Navigation("Vehicles");
+                    b.Navigation("Booking");
+
+                    b.Navigation("Ride");
+
+                    b.Navigation("Vehicle");
                 });
 #pragma warning restore 612, 618
         }
