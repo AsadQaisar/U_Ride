@@ -26,7 +26,7 @@ namespace U_Ride.Controllers
 
         [HttpPut("PostRide")]
         [Authorize]
-        public async Task<IActionResult> PostRide([FromBody] RideDto.GeoCoordinatesDto coordinatesDto)
+        public async Task<IActionResult> PostRide([FromBody] RideDto.PostRideDto postRideDto)
         {
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
@@ -35,7 +35,6 @@ namespace U_Ride.Controllers
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
-            var distance = _rideService.CalculateDistance(coordinatesDto.StartPoint, coordinatesDto.EndPoint);
 
             var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.UserID == userId);
             if (vehicle == null)
@@ -45,7 +44,8 @@ namespace U_Ride.Controllers
 
             int availableSeats = vehicle.SeatCapacity - 1;
             double baseRatePerKm = 10.0;
-            double price = _rideService.EstimatePrice(baseRatePerKm, await distance, availableSeats);
+            var distance = postRideDto.Distance ?? 0.0;
+            double price = _rideService.EstimatePrice(baseRatePerKm, distance, availableSeats);
 
             // Check if a ride already exists for the user
             var existingRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
@@ -53,9 +53,10 @@ namespace U_Ride.Controllers
             if (existingRide != null)
             {
                 // Update existing ride
-                existingRide.StartPoint = coordinatesDto.StartPoint;
-                existingRide.EndPoint = coordinatesDto.EndPoint;
-                existingRide.EncodedPolyline = coordinatesDto.EncodedPolyline;
+                existingRide.StartPoint = postRideDto.StartPoint;
+                existingRide.EndPoint = postRideDto.EndPoint;
+                existingRide.EncodedPolyline = postRideDto.EncodedPolyline;
+                existingRide.Distance = postRideDto.Distance;
                 existingRide.AvailableSeats = availableSeats;
                 existingRide.Price = price;
                 existingRide.LastModifiedOn = DateTime.UtcNow; 
@@ -66,9 +67,10 @@ namespace U_Ride.Controllers
                 var newRide = new Ride
                 {
                     UserID = userId,
-                    StartPoint = coordinatesDto.StartPoint,
-                    EndPoint = coordinatesDto.EndPoint,
-                    EncodedPolyline = coordinatesDto.EncodedPolyline,
+                    StartPoint = postRideDto.StartPoint,
+                    EndPoint = postRideDto.EndPoint,
+                    EncodedPolyline = postRideDto.EncodedPolyline,
+                    Distance = postRideDto.Distance,
                     AvailableSeats = availableSeats,
                     Price = price,
                     CreatedOn = DateTime.UtcNow

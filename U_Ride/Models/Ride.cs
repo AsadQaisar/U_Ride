@@ -16,6 +16,8 @@ namespace U_Ride.Models
 
         public string? EncodedPolyline { get; set; }
 
+        public double? Distance { get; set; }
+
         public bool IsDriver { get; set; } = true;
 
         public double? Price { get; set; }

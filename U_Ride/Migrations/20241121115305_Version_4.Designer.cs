@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using U_Ride.Models;
 
@@ -11,9 +12,11 @@ using U_Ride.Models;
 namespace U_Ride.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241121115305_Version_4")]
+    partial class Version_4
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -92,8 +95,6 @@ namespace U_Ride.Migrations
 
                     b.HasKey("MessageID");
 
-                    b.HasIndex("ChatID");
-
                     b.ToTable("Messages");
                 });
 
@@ -110,9 +111,6 @@ namespace U_Ride.Migrations
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");
-
-                    b.Property<double?>("Distance")
-                        .HasColumnType("float");
 
                     b.Property<string>("EncodedPolyline")
                         .HasColumnType("nvarchar(max)");
@@ -263,15 +261,6 @@ namespace U_Ride.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("U_Ride.Models.Message", b =>
-                {
-                    b.HasOne("U_Ride.Models.Chat", null)
-                        .WithMany("Messages")
-                        .HasForeignKey("ChatID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("U_Ride.Models.Ride", b =>
                 {
                     b.HasOne("U_Ride.Models.User", null)
@@ -288,11 +277,6 @@ namespace U_Ride.Migrations
                         .HasForeignKey("U_Ride.Models.Vehicle", "UserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("U_Ride.Models.Chat", b =>
-                {
-                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("U_Ride.Models.User", b =>

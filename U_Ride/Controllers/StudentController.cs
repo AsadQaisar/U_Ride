@@ -26,7 +26,7 @@ namespace U_Ride.Controllers
 
         [HttpGet("SearchRides")]
         [Authorize]
-        public async Task<IActionResult> SearchRides([FromBody] RideDto.GeoCoordinatesDto coordinatesDto)
+        public async Task<IActionResult> SearchRides([FromBody] RideDto.PostRideDto postRideDto)
         {
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
@@ -42,9 +42,9 @@ namespace U_Ride.Controllers
             if (existingRide != null)
             {
                 // Update existing ride
-                existingRide.StartPoint = coordinatesDto.StartPoint;
-                existingRide.EndPoint = coordinatesDto.EndPoint;
-                existingRide.EncodedPolyline = coordinatesDto.EncodedPolyline;
+                existingRide.StartPoint = postRideDto.StartPoint;
+                existingRide.EndPoint = postRideDto.EndPoint;
+                existingRide.EncodedPolyline = postRideDto.EncodedPolyline;
                 existingRide.LastModifiedOn = DateTime.UtcNow;
             }
             else
@@ -53,9 +53,9 @@ namespace U_Ride.Controllers
                 var newRide = new Ride
                 {
                     UserID = userId,
-                    StartPoint = coordinatesDto.StartPoint,
-                    EndPoint = coordinatesDto.EndPoint,
-                    EncodedPolyline = coordinatesDto.EncodedPolyline,
+                    StartPoint = postRideDto.StartPoint,
+                    EndPoint = postRideDto.EndPoint,
+                    EncodedPolyline = postRideDto.EncodedPolyline,
                     IsDriver = false,
                     CreatedOn = DateTime.UtcNow
                 };
@@ -89,7 +89,7 @@ namespace U_Ride.Controllers
                 var decodedPoints = _rideService.DecodePolyline(ride.Ride.EncodedPolyline);
 
                 // Step 3: Find the closest point within the search radius
-                var endCoordinates = await _rideService.ParseCoordinates(coordinatesDto.EndPoint);
+                var endCoordinates = await _rideService.ParseCoordinates(postRideDto.EndPoint);
 
                 var closestPoint = _rideService.GetPointsWithinRadiusAndClosest(decodedPoints, endCoordinates, searchRadiuskm);
 
@@ -98,6 +98,7 @@ namespace U_Ride.Controllers
                 {
                     var driverInfo = new DriverInfo
                     {
+                        DriverID = ride.UserID,
                         FullName = ride.FullName,
                         Gender = ride.Gender,
                         PhoneNumber = ride.PhoneNumber
@@ -130,9 +131,9 @@ namespace U_Ride.Controllers
 
 
         [HttpGet("Ride_Calculation")]
-        public async Task<IActionResult> RideCalculation([FromBody] RideDto.GeoCoordinatesDto coordinatesDto)
+        public async Task<IActionResult> RideCalculation([FromBody] RideDto.PostRideDto postRideDto)
         {
-            var distance = await _rideService.CalculateRouteDistanceAsync(coordinatesDto.StartPoint, coordinatesDto.EndPoint);
+            var distance = await _rideService.CalculateRouteDistanceAsync(postRideDto.StartPoint, postRideDto.EndPoint);
             if (distance is not null)
             {
                 var decodedPoints = _rideService.DecodePolyline(distance.geometry);

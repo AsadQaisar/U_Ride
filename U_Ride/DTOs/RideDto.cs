@@ -16,13 +16,16 @@ namespace U_Ride.DTOs
             public double StopLongitude { get; set; } // Longitude for the stopping point
         }
 
-        public class GeoCoordinatesDto
+        public class PostRideDto 
         {
-            public string StartPoint { get; set; } // Expected format: "latitude, longitude"
+            public string StartPoint { get; set; } 
 
-            public string EndPoint { get; set; }  // Expected format: "latitude, longitude"
+            public string EndPoint { get; set; }
+
+            public double? Distance { get; set; }
 
             public string? EncodedPolyline { get; set; }
+
         }
 
         public class RouteInfo
@@ -38,15 +41,21 @@ namespace U_Ride.DTOs
             public List<int> WayPoints { get; set; }
         }
 
+        //================================================================================//
+
         // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse);
+
         public class DriverInfo
         {
+            public int DriverID { get; set; }
+
             public string FullName { get; set; }
 
             public string Gender { get; set; }
             
             public string PhoneNumber { get; set; }
         }
+
         public class RideInfo
         {
             public int RouteMatched { get; set; }
@@ -55,6 +64,7 @@ namespace U_Ride.DTOs
 
             public string AvailableSeats { get; set; }
         }
+
         public class VehicleInfo
         {
             public string VehicleType { get; set; }
@@ -63,6 +73,7 @@ namespace U_Ride.DTOs
 
             public string LicensePlate { get; set; }
         }
+
         public class Root
         {
             public DriverInfo DriverInfo { get; set; }
@@ -71,6 +82,8 @@ namespace U_Ride.DTOs
             
             public VehicleInfo VehicleInfo { get; set; }
         }
+
+        //================================================================================//
 
     }
 }

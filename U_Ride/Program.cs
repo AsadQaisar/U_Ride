@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using U_Ride.Data;
 using U_Ride.Models;
 using U_Ride.Services;
 
@@ -17,14 +18,16 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Configure CORS policy if needed (optional).
-//builder.Services.AddCors(options =>
-//{
-//    options.AddPolicy(name: MyAllowSpecificOrigins,
-//                      policy =>
-//                      {
-//                          policy.WithOrigins("http://127.0.0.1:5500");
-//                      });
-//});
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("reactApp", builder =>
+    {
+        builder.WithOrigins("http://localhost:3000", "http://localhost:3001")
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
+    });
+});
 
 // For Local Database
 builder.Services.AddDbContext<ApplicationDbContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -34,6 +37,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(option => option.UseSqlServe
 
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<RideService>();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<SharedDb>();
 
 // Add JWT authentication
 var jwtSettings = builder.Configuration.GetSection("JWTSettings");
@@ -68,13 +73,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// app.UseCors(MyAllowSpecificOrigins);
-
 app.UseHttpsRedirection();
+
+app.UseCors("reactApp");
 
 //app.UseAuthentication();
 
 app.UseAuthorization();
+
+// Configure the SignalR hub
+app.MapHub<ChatHub>("/Chat");
 
 app.MapControllers();
 

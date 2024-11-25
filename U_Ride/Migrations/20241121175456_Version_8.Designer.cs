@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using U_Ride.Models;
 
@@ -11,9 +12,11 @@ using U_Ride.Models;
 namespace U_Ride.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241121175456_Version_8")]
+    partial class Version_8
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -47,56 +50,6 @@ namespace U_Ride.Migrations
                     b.ToTable("Bookings");
                 });
 
-            modelBuilder.Entity("U_Ride.Models.Chat", b =>
-                {
-                    b.Property<int>("ChatID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ChatID"));
-
-                    b.Property<int>("DriverID")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("StartedOn")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("StudentID")
-                        .HasColumnType("int");
-
-                    b.HasKey("ChatID");
-
-                    b.ToTable("Chats");
-                });
-
-            modelBuilder.Entity("U_Ride.Models.Message", b =>
-                {
-                    b.Property<int>("MessageID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MessageID"));
-
-                    b.Property<int>("ChatID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("MessageContent")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("SenderID")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("SentOn")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("MessageID");
-
-                    b.HasIndex("ChatID");
-
-                    b.ToTable("Messages");
-                });
-
             modelBuilder.Entity("U_Ride.Models.Ride", b =>
                 {
                     b.Property<int>("RideID")
@@ -110,9 +63,6 @@ namespace U_Ride.Migrations
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");
-
-                    b.Property<double?>("Distance")
-                        .HasColumnType("float");
 
                     b.Property<string>("EncodedPolyline")
                         .HasColumnType("nvarchar(max)");
@@ -263,15 +213,6 @@ namespace U_Ride.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("U_Ride.Models.Message", b =>
-                {
-                    b.HasOne("U_Ride.Models.Chat", null)
-                        .WithMany("Messages")
-                        .HasForeignKey("ChatID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("U_Ride.Models.Ride", b =>
                 {
                     b.HasOne("U_Ride.Models.User", null)
@@ -288,11 +229,6 @@ namespace U_Ride.Migrations
                         .HasForeignKey("U_Ride.Models.Vehicle", "UserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("U_Ride.Models.Chat", b =>
-                {
-                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("U_Ride.Models.User", b =>

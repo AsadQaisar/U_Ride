@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using U_Ride.Models;
 
@@ -11,9 +12,11 @@ using U_Ride.Models;
 namespace U_Ride.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241121144323_Version_6")]
+    partial class Version_6
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -110,9 +113,6 @@ namespace U_Ride.Migrations
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");
-
-                    b.Property<double?>("Distance")
-                        .HasColumnType("float");
 
                     b.Property<string>("EncodedPolyline")
                         .HasColumnType("nvarchar(max)");
@@ -265,11 +265,13 @@ namespace U_Ride.Migrations
 
             modelBuilder.Entity("U_Ride.Models.Message", b =>
                 {
-                    b.HasOne("U_Ride.Models.Chat", null)
+                    b.HasOne("U_Ride.Models.Chat", "Chat")
                         .WithMany("Messages")
                         .HasForeignKey("ChatID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Chat");
                 });
 
             modelBuilder.Entity("U_Ride.Models.Ride", b =>
