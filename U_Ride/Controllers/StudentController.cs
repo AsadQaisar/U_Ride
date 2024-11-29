@@ -72,8 +72,7 @@ namespace U_Ride.Controllers
                 .ToListAsync();
 
             // Filter to only available rides with encoded polyline
-            var rides = drivers.Where(h => h.Ride != null && h.Ride.IsAvailable == true && h.Ride.EncodedPolyline != null)
-                               .ToList();
+            var rides = drivers.Where(h => h.Ride != null && h.Ride.IsDriver == true && h.Ride.IsAvailable == true).ToList();
 
             // int intervals = 4;
             double searchRadiuskm = 2.0;
@@ -82,13 +81,10 @@ namespace U_Ride.Controllers
 
             foreach (var ride in rides)
             {
-                // Step # 1 Find Route Info
-                // var routeinfo = await _rideService.CRalculateRouteDistanceAsync(ride.StartPoint, ride.EndPoint);
-
-                // Step # 2 Decode Polyline
+                // Step 1: Decode Polyline
                 var decodedPoints = _rideService.DecodePolyline(ride.Ride.EncodedPolyline);
 
-                // Step 3: Find the closest point within the search radius
+                // Step 2: Find the closest point within the search radius
                 var endCoordinates = await _rideService.ParseCoordinates(postRideDto.EndPoint);
 
                 var closestPoint = _rideService.GetPointsWithinRadiusAndClosest(decodedPoints, endCoordinates, searchRadiuskm);
@@ -96,9 +92,9 @@ namespace U_Ride.Controllers
                 // If a closest point within the radius is found, add the ride to matching rides
                 if (closestPoint.PointsWithinRadius.Count != 0)
                 {
-                    var driverInfo = new DriverInfo
+                    var driverInfo = new UserInfo
                     {
-                        DriverID = ride.UserID,
+                        UserID = ride.UserID,
                         FullName = ride.FullName,
                         Gender = ride.Gender,
                         PhoneNumber = ride.PhoneNumber
@@ -111,21 +107,20 @@ namespace U_Ride.Controllers
                     };
                     var vehicleInfo = new VehicleInfo
                     {
-                        VehicleType = ride.Vehicle.VehicleType,    // Vehicle Type from the Vehicle table
+                        VehicleType = ride.Vehicle.VehicleType,
                         Make_Model = ($"{ ride.Vehicle.Color} {ride.Vehicle.Make} {ride.Vehicle.Model}"),
                         LicensePlate = ride.Vehicle.LicensePlate
                     };
                     var root = new Root
                     {
                         RideInfo = rideInfo,
-                        DriverInfo = driverInfo,
+                        UserInfo = driverInfo,
                         VehicleInfo = vehicleInfo
                     };
 
                     matchingRides.Add(root);
                 }
             }
-
             return Ok(matchingRides);
         }
 

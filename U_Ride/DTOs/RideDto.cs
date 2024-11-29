@@ -24,6 +24,8 @@ namespace U_Ride.DTOs
 
             public double? Distance { get; set; }
 
+            public double? Price { get; set; }
+
             public string? EncodedPolyline { get; set; }
 
         }
@@ -45,15 +47,17 @@ namespace U_Ride.DTOs
 
         // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse);
 
-        public class DriverInfo
+        public class UserInfo
         {
-            public int DriverID { get; set; }
+            public int UserID { get; set; }
 
             public string FullName { get; set; }
 
             public string Gender { get; set; }
             
             public string PhoneNumber { get; set; }
+
+            public string? SocketID {  get; set; }
         }
 
         public class RideInfo
@@ -62,7 +66,7 @@ namespace U_Ride.DTOs
 
             public string? Price { get; set; }
 
-            public string AvailableSeats { get; set; }
+            public string? AvailableSeats { get; set; }
         }
 
         public class VehicleInfo
@@ -76,11 +80,11 @@ namespace U_Ride.DTOs
 
         public class Root
         {
-            public DriverInfo DriverInfo { get; set; }
+            public UserInfo UserInfo { get; set; }
            
             public RideInfo RideInfo { get; set; }
             
-            public VehicleInfo VehicleInfo { get; set; }
+            public VehicleInfo? VehicleInfo { get; set; }
         }
 
         //================================================================================//

@@ -8,6 +8,7 @@ using U_Ride.DTOs;
 using U_Ride.Models;
 using U_Ride.Services;
 using static U_Ride.DTOs.AuthDto;
+using static U_Ride.DTOs.RideDto;
 
 namespace U_Ride.Controllers
 {
@@ -34,51 +35,126 @@ namespace U_Ride.Controllers
                 return BadRequest(ModelState);
             }
 
-            // Check if SeatNumber or PhoneNumber already exists
-            var existingUser = await _context.Users.AsNoTracking()
-                .FirstOrDefaultAsync(u => u.SeatNumber == registerDto.SeatNumber || u.PhoneNumber == registerDto.PhoneNumber);
+            User user;
 
-            if (existingUser != null)
+            if (registerDto.UserID != null)
             {
-                return Conflict("User with the same Seat Number or Phone Number already exists.");
+                // Find existing user by ID
+                user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == registerDto.UserID);
+
+                if (user == null)
+                {
+                    return NotFound("User not found.");
+                }
+
+                // Check if another user has the same SeatNumber or PhoneNumber
+                var isDuplicate = await _context.Users
+                    .AnyAsync(u => (u.UserID != registerDto.UserID) // Exclude the current user
+                    && (u.SeatNumber == registerDto.SeatNumber || u.PhoneNumber == registerDto.PhoneNumber));
+
+                if (isDuplicate)
+                {
+                    return Conflict("Seat Number or Phone Number is already in use by another user.");
+                }
+
+                // Update user details
+                user.FullName = registerDto.FullName;
+                user.Gender = registerDto.Gender;
+                user.SeatNumber = registerDto.SeatNumber;
+                user.Department = registerDto.Department;
+                user.PhoneNumber = registerDto.PhoneNumber;
+                user.LastModifiedOn = DateTime.UtcNow;
+
+                if (!string.IsNullOrEmpty(registerDto.Password))
+                {
+                    user.Password = _passwordHasher.HashPassword(user, registerDto.Password);
+                }
             }
-
-            var user = new User
+            else
             {
-                FullName = registerDto.FullName,
-                Gender = registerDto.Gender,
-                SeatNumber = registerDto.SeatNumber,
-                Department = registerDto.Department,
-                PhoneNumber = registerDto.PhoneNumber,
-                CreatedOn = DateTime.UtcNow,
-                LastModifiedOn = DateTime.UtcNow,
-                IsActive = true
-            };
-            user.Password = _passwordHasher.HashPassword(user, registerDto.Password);
+                // Check if SeatNumber or PhoneNumber already exists
+                var existingUser = await _context.Users.AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.SeatNumber == registerDto.SeatNumber || u.PhoneNumber == registerDto.PhoneNumber);
 
-            _context.Users.Add(user);
+                if (existingUser != null)
+                {
+                    return Conflict("User with the same Seat Number or Phone Number already exists.");
+                }
+
+                // Create new user
+                user = new User
+                {
+                    FullName = registerDto.FullName,
+                    Gender = registerDto.Gender,
+                    SeatNumber = registerDto.SeatNumber,
+                    Department = registerDto.Department,
+                    PhoneNumber = registerDto.PhoneNumber,
+                    CreatedOn = DateTime.UtcNow,
+                    LastModifiedOn = DateTime.UtcNow,
+                    IsActive = true,
+                    Password = _passwordHasher.HashPassword(new User(), registerDto.Password)
+                };
+                _context.Users.Add(user);
+            }
             await _context.SaveChangesAsync();
 
-            return Ok("User registered successfully.");
+            return Ok("User information saved successfully.");
         }
 
 
         [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] AuthDto.LoginDto loginDto)
         {
-            // Validate user credentials...
+            // Validate user credentials
             var user = await _context.Users.AsNoTracking()
                 .FirstOrDefaultAsync(u => u.SeatNumber == loginDto.Phone_SeatNumber || u.PhoneNumber == loginDto.Phone_SeatNumber);
 
-            if (user == null || user.IsActive == false || _passwordHasher.VerifyHashedPassword(user, user.Password, loginDto.Password) == PasswordVerificationResult.Failed)
+            if (user == null || !user.IsActive ||
+                _passwordHasher.VerifyHashedPassword(user, user.Password, loginDto.Password) == PasswordVerificationResult.Failed)
             {
-                return Unauthorized();
+                return Unauthorized("Invalid credentials or inactive account.");
             }
 
-            var token = _tokenService.GenerateToken(user);
-            return Ok(new { Token = token });
+            // Fetch associated vehicle info if the user has one
+            AuthDto.VehicleInfo? vehicleInfo = null;
+            if (user.HasVehicle)
+            {
+                var vehicle = await _context.Vehicles.AsNoTracking()
+                    .FirstOrDefaultAsync(v => v.UserID == user.UserID);
+
+                if (vehicle != null)
+                {
+                    vehicleInfo = new AuthDto.VehicleInfo
+                    {
+                        VehicleType = vehicle.VehicleType,
+                        Make_Model = $"{vehicle.Make} {vehicle.Model}",
+                        LicensePlate = vehicle.LicensePlate
+                    };
+                }
+            }
+
+            // Generate the token for the user
+            var token = _tokenService.GenerateToken(user); // Replace with your actual token generation logic
+
+            // Prepare the response DTO
+            var userInfo = new AuthDto.UserInfo
+            {
+                UserID = user.UserID,
+                FullName = user.FullName,
+                SeatNumber = user.SeatNumber,
+                Gender = user.Gender,
+                PhoneNumber = user.PhoneNumber,
+                Vehicle = vehicleInfo,
+                Authorization = new Authorization
+                {
+                    token = token
+                }
+            };
+
+            // Return the response
+            return Ok(userInfo);
         }
-       
+
 
         [HttpPut("IsDriver")]
         [Authorize]

@@ -5,6 +5,7 @@ using U_Ride.Models;
 using U_Ride.DTOs;
 using U_Ride.Services;
 using Microsoft.EntityFrameworkCore;
+using static U_Ride.DTOs.RideDto;
 
 namespace U_Ride.Controllers
 {
@@ -44,8 +45,8 @@ namespace U_Ride.Controllers
 
             int availableSeats = vehicle.SeatCapacity - 1;
             double baseRatePerKm = 10.0;
-            var distance = postRideDto.Distance ?? 0.0;
-            double price = _rideService.EstimatePrice(baseRatePerKm, distance, availableSeats);
+            // var distance = postRideDto.Distance ?? 0.0;
+            // double price = _rideService.EstimatePrice(baseRatePerKm, distance, availableSeats);
 
             // Check if a ride already exists for the user
             var existingRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
@@ -58,7 +59,7 @@ namespace U_Ride.Controllers
                 existingRide.EncodedPolyline = postRideDto.EncodedPolyline;
                 existingRide.Distance = postRideDto.Distance;
                 existingRide.AvailableSeats = availableSeats;
-                existingRide.Price = price;
+                existingRide.Price = postRideDto.Price;
                 existingRide.LastModifiedOn = DateTime.UtcNow; 
             }
             else
@@ -72,7 +73,7 @@ namespace U_Ride.Controllers
                     EncodedPolyline = postRideDto.EncodedPolyline,
                     Distance = postRideDto.Distance,
                     AvailableSeats = availableSeats,
-                    Price = price,
+                    Price = postRideDto.Price,
                     CreatedOn = DateTime.UtcNow
                 };
                 await _context.Rides.AddAsync(newRide);
@@ -81,9 +82,57 @@ namespace U_Ride.Controllers
             // Save changes to the database
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Ride posted successfully." });
+            // Search Ride
+            var students = await _context.Users
+                .Where(h => h.HasVehicle == true)
+                .Include(r => r.Ride)
+                .AsNoTracking()
+                .ToListAsync();
 
+            // Filter to only available rides with encoded polyline
+            var rides = students.Where(h => h.Ride != null && h.Ride.IsDriver == false && h.Ride.IsAvailable == true).ToList();
+
+            // int intervals = 4;
+            double searchRadiuskm = 2.0;
+
+            var matchingRides = new List<Root>();
+
+            foreach (var ride in rides)
+            {
+                // Step 1: Decode Polyline
+                var decodedPoints = _rideService.DecodePolyline(postRideDto.EncodedPolyline);
+
+                // Step 2: Find the closest point within the search radius
+                var endCoordinates = await _rideService.ParseCoordinates(ride.Ride.EndPoint);
+
+                var closestPoint = _rideService.GetPointsWithinRadiusAndClosest(decodedPoints, endCoordinates, searchRadiuskm);
+
+                // If a closest point within the radius is found, add the ride to matching rides
+                if (closestPoint.PointsWithinRadius.Count != 0)
+                {
+                    var studentInfo = new UserInfo
+                    {
+                        UserID = ride.UserID,
+                        FullName = ride.FullName,
+                        Gender = ride.Gender,
+                        PhoneNumber = ride.PhoneNumber
+                    };
+                    var rideInfo = new RideInfo
+                    {
+                        RouteMatched = closestPoint.PointsWithinRadius.Count
+                    };
+                    var root = new Root
+                    {
+                        RideInfo = rideInfo,
+                        UserInfo = studentInfo
+                    };
+
+                    matchingRides.Add(root);
+                }
+            }
+            return Ok(matchingRides);
         }
+
 
         [HttpPost("UpdateSeats")]
         public async Task<IActionResult> UpdateSeats(int rideId)
