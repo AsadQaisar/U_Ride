@@ -26,6 +26,8 @@ namespace U_Ride.DTOs
 
             public double? Price { get; set; }
 
+            public string SocketID { get; set; }
+
             public string? EncodedPolyline { get; set; }
 
         }
@@ -57,7 +59,11 @@ namespace U_Ride.DTOs
             
             public string PhoneNumber { get; set; }
 
-            public string? SocketID {  get; set; }
+            public VehicleInfo? VehicleInfo { get; set; }
+
+            public RideInfo RideInfo { get; set; }
+
+            public SocketConnection? SocketConnection { get; set; }
         }
 
         public class RideInfo
@@ -78,13 +84,9 @@ namespace U_Ride.DTOs
             public string LicensePlate { get; set; }
         }
 
-        public class Root
+        public class SocketConnection
         {
-            public UserInfo UserInfo { get; set; }
-           
-            public RideInfo RideInfo { get; set; }
-            
-            public VehicleInfo? VehicleInfo { get; set; }
+            public string SocketID { get; set; }
         }
 
         //================================================================================//

@@ -24,7 +24,7 @@ namespace U_Ride.Controllers
             _rideService = rideService ?? throw new ArgumentNullException(nameof(rideService));
         }
 
-        [HttpGet("SearchRides")]
+        [HttpPut("SearchRides")]
         [Authorize]
         public async Task<IActionResult> SearchRides([FromBody] RideDto.PostRideDto postRideDto)
         {
@@ -44,6 +44,7 @@ namespace U_Ride.Controllers
                 // Update existing ride
                 existingRide.StartPoint = postRideDto.StartPoint;
                 existingRide.EndPoint = postRideDto.EndPoint;
+                existingRide.SocketID = postRideDto.SocketID;
                 existingRide.EncodedPolyline = postRideDto.EncodedPolyline;
                 existingRide.LastModifiedOn = DateTime.UtcNow;
             }
@@ -55,6 +56,7 @@ namespace U_Ride.Controllers
                     UserID = userId,
                     StartPoint = postRideDto.StartPoint,
                     EndPoint = postRideDto.EndPoint,
+                    SocketID = postRideDto.SocketID,
                     EncodedPolyline = postRideDto.EncodedPolyline,
                     IsDriver = false,
                     CreatedOn = DateTime.UtcNow
@@ -77,7 +79,7 @@ namespace U_Ride.Controllers
             // int intervals = 4;
             double searchRadiuskm = 2.0;
 
-            var matchingRides = new List<Root>(); 
+            var matchingRides = new List<UserInfo>();
 
             foreach (var ride in rides)
             {
@@ -92,13 +94,7 @@ namespace U_Ride.Controllers
                 // If a closest point within the radius is found, add the ride to matching rides
                 if (closestPoint.PointsWithinRadius.Count != 0)
                 {
-                    var driverInfo = new UserInfo
-                    {
-                        UserID = ride.UserID,
-                        FullName = ride.FullName,
-                        Gender = ride.Gender,
-                        PhoneNumber = ride.PhoneNumber
-                    };
+                    
                     var rideInfo = new RideInfo
                     {
                         RouteMatched = closestPoint.PointsWithinRadius.Count,
@@ -111,14 +107,24 @@ namespace U_Ride.Controllers
                         Make_Model = ($"{ ride.Vehicle.Color} {ride.Vehicle.Make} {ride.Vehicle.Model}"),
                         LicensePlate = ride.Vehicle.LicensePlate
                     };
-                    var root = new Root
+                    // Create SocketConnection object
+                    //var socketConnection = new SocketConnection
+                    //{
+                    //    SocketID = Context.ConnectionId // Assuming you're in a SignalR Hub context
+                    //};
+
+                    var userInfo = new UserInfo
                     {
+                        UserID = ride.UserID,
+                        FullName = ride.FullName,
+                        Gender = ride.Gender,
+                        PhoneNumber = ride.PhoneNumber,
+                        VehicleInfo = vehicleInfo,
                         RideInfo = rideInfo,
-                        UserInfo = driverInfo,
-                        VehicleInfo = vehicleInfo
+                        // SocketConnection = socketConnection
                     };
 
-                    matchingRides.Add(root);
+                    matchingRides.Add(userInfo);
                 }
             }
             return Ok(matchingRides);

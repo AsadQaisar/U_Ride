@@ -60,6 +60,7 @@ namespace U_Ride.Controllers
                 existingRide.Distance = postRideDto.Distance;
                 existingRide.AvailableSeats = availableSeats;
                 existingRide.Price = postRideDto.Price;
+                existingRide.SocketID = postRideDto.SocketID;
                 existingRide.LastModifiedOn = DateTime.UtcNow; 
             }
             else
@@ -74,6 +75,7 @@ namespace U_Ride.Controllers
                     Distance = postRideDto.Distance,
                     AvailableSeats = availableSeats,
                     Price = postRideDto.Price,
+                    SocketID = postRideDto.SocketID,
                     CreatedOn = DateTime.UtcNow
                 };
                 await _context.Rides.AddAsync(newRide);
@@ -84,7 +86,7 @@ namespace U_Ride.Controllers
 
             // Search Ride
             var students = await _context.Users
-                .Where(h => h.HasVehicle == true)
+                .Where(h => h.HasVehicle == false)
                 .Include(r => r.Ride)
                 .AsNoTracking()
                 .ToListAsync();
@@ -95,7 +97,7 @@ namespace U_Ride.Controllers
             // int intervals = 4;
             double searchRadiuskm = 2.0;
 
-            var matchingRides = new List<Root>();
+            var matchingRides = new List<UserInfo>();
 
             foreach (var ride in rides)
             {
@@ -110,24 +112,31 @@ namespace U_Ride.Controllers
                 // If a closest point within the radius is found, add the ride to matching rides
                 if (closestPoint.PointsWithinRadius.Count != 0)
                 {
-                    var studentInfo = new UserInfo
+                    // Create RideInfo object
+                    var rideInfo = new RideInfo
+                    {
+                        RouteMatched = closestPoint.PointsWithinRadius.Count,
+                    };
+
+                    // Create SocketConnection object
+                    //var socketConnection = new SocketConnection
+                    //{
+                    //    SocketID = Context.ConnectionId // Assuming you're in a SignalR Hub context
+                    //};
+
+                    // Create UserInfo object
+                    var userInfo = new UserInfo
                     {
                         UserID = ride.UserID,
                         FullName = ride.FullName,
                         Gender = ride.Gender,
-                        PhoneNumber = ride.PhoneNumber
-                    };
-                    var rideInfo = new RideInfo
-                    {
-                        RouteMatched = closestPoint.PointsWithinRadius.Count
-                    };
-                    var root = new Root
-                    {
+                        PhoneNumber = ride.PhoneNumber,
                         RideInfo = rideInfo,
-                        UserInfo = studentInfo
+                        // SocketConnection = socketConnection
                     };
 
-                    matchingRides.Add(root);
+                    // Add the UserInfo to the list of matching rides or process further
+                    matchingRides.Add(userInfo);
                 }
             }
             return Ok(matchingRides);

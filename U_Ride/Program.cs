@@ -22,7 +22,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("reactApp", builder =>
     {
-        builder.WithOrigins("http://localhost:3000", "http://localhost:3001")
+        builder.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:8081")
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials();
@@ -30,10 +30,10 @@ builder.Services.AddCors(options =>
 });
 
 // For Local Database
-// builder.Services.AddDbContext<ApplicationDbContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<ApplicationDbContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // For Cloud Database
-builder.Services.AddDbContext<ApplicationDbContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("CloudConnection")));
+//builder.Services.AddDbContext<ApplicationDbContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("CloudConnection")));
 
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<RideService>();
