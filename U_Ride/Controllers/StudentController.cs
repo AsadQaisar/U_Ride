@@ -24,7 +24,7 @@ namespace U_Ride.Controllers
             _rideService = rideService ?? throw new ArgumentNullException(nameof(rideService));
         }
 
-        [HttpPut("SearchRides")]
+        [HttpPost("SearchRides")]
         [Authorize]
         public async Task<IActionResult> SearchRides([FromBody] RideDto.PostRideDto postRideDto)
         {
@@ -44,7 +44,6 @@ namespace U_Ride.Controllers
                 // Update existing ride
                 existingRide.StartPoint = postRideDto.StartPoint;
                 existingRide.EndPoint = postRideDto.EndPoint;
-                existingRide.SocketID = postRideDto.SocketID;
                 existingRide.EncodedPolyline = postRideDto.EncodedPolyline;
                 existingRide.LastModifiedOn = DateTime.UtcNow;
             }
@@ -56,7 +55,6 @@ namespace U_Ride.Controllers
                     UserID = userId,
                     StartPoint = postRideDto.StartPoint,
                     EndPoint = postRideDto.EndPoint,
-                    SocketID = postRideDto.SocketID,
                     EncodedPolyline = postRideDto.EncodedPolyline,
                     IsDriver = false,
                     CreatedOn = DateTime.UtcNow
@@ -67,9 +65,9 @@ namespace U_Ride.Controllers
 
             // Search Ride
             var drivers = await _context.Users
-                .Where(h => h.HasVehicle == true)  
-                .Include(r => r.Ride)              
-                .Include(v => v.Vehicle)          
+                .Where(h => h.HasVehicle == true)
+                .Include(r => r.Ride)
+                .Include(v => v.Vehicle)
                 .AsNoTracking()
                 .ToListAsync();
 

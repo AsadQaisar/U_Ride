@@ -9,9 +9,9 @@
 
     public class SendMessageDto
     {
-        public int ChatId { get; set; }
+        // public int ChatId { get; set; }
         
-        // public int? SenderId { get; set; }
+        public int ReceiverID { get; set; }
         
         public string Message { get; set; }
     }

@@ -1,4 +1,7 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Primitives;
+using System.IdentityModel.Tokens.Jwt;
 using U_Ride.Data;
 using U_Ride.Models;
 
@@ -7,6 +10,8 @@ namespace U_Ride.Services
     public class ChatHub : Hub
     {
         private readonly SharedDb _shared;
+
+        public static Dictionary<string, string> UserConnections = new Dictionary<string, string>();
 
         public ChatHub(SharedDb shared)
         {
@@ -40,11 +45,41 @@ namespace U_Ride.Services
             Clients.Client(connectionId).SendAsync("clientMethodName", $"Updated userid {userId}");
         }
 
-        public override Task OnConnectedAsync()
+        [Authorize]
+        public override async Task OnConnectedAsync()
         {
             var connectionId = Context.ConnectionId;
-            Clients.Client(connectionId).SendAsync("WelcomeMethodName", connectionId);
-            return base.OnConnectedAsync();
+            var token = Context.GetHttpContext().Request.Query["access_token"];
+
+            if (token != StringValues.Empty)
+            {
+                try
+                {
+                    // Decode the token to extract the user ID
+                    var userId = ExtractUserIdFromToken(token);
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        // Store the connection ID for the user
+                        UserConnections[userId] = connectionId;
+
+                        // Send a welcome message to the client
+                        await Clients.Client(connectionId).SendAsync("WelcomeMethodName", connectionId, userId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error decoding token: {ex.Message}");
+                }
+            }
+
+            await base.OnConnectedAsync();
+        }
+
+        private string ExtractUserIdFromToken(string token)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+            return jwtToken?.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
         }
 
         public override Task OnDisconnectedAsync(Exception exception)

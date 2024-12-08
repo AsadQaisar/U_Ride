@@ -26,8 +26,6 @@ namespace U_Ride.DTOs
 
             public double? Price { get; set; }
 
-            public string SocketID { get; set; }
-
             public string? EncodedPolyline { get; set; }
 
         }

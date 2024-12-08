@@ -25,7 +25,7 @@ namespace U_Ride.Controllers
             _rideService = rideService ?? throw new ArgumentNullException(nameof(rideService));
         }
 
-        [HttpPut("PostRide")]
+        [HttpPost("PostRide")]
         [Authorize]
         public async Task<IActionResult> PostRide([FromBody] RideDto.PostRideDto postRideDto)
         {
@@ -60,7 +60,6 @@ namespace U_Ride.Controllers
                 existingRide.Distance = postRideDto.Distance;
                 existingRide.AvailableSeats = availableSeats;
                 existingRide.Price = postRideDto.Price;
-                existingRide.SocketID = postRideDto.SocketID;
                 existingRide.LastModifiedOn = DateTime.UtcNow; 
             }
             else
@@ -75,7 +74,6 @@ namespace U_Ride.Controllers
                     Distance = postRideDto.Distance,
                     AvailableSeats = availableSeats,
                     Price = postRideDto.Price,
-                    SocketID = postRideDto.SocketID,
                     CreatedOn = DateTime.UtcNow
                 };
                 await _context.Rides.AddAsync(newRide);

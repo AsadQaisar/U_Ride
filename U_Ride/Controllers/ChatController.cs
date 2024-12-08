@@ -41,14 +41,37 @@ namespace U_Ride.Controllers
         // <param name="connectionId"></param>
         // <param name="message"></param>
         
-        [HttpPost("{connectionId}/{message}")]
-        public void Post(string connectionId, string message)
+        /*
+        [HttpPost("SendPrivateMessage")]
+        public void Post(SendMessageDto sendMessageDto)
         {
-            _hubContext.Clients.Client(connectionId).SendAsync("privateMessageMethodName", message);
+            _hubContext.Clients.Client(sendMessageDto.ConnectionID).SendAsync("privateMessageMethodName", sendMessageDto.Message);
+        }
+        */
+
+        [HttpPost("SendPrivateMessage")]
+        [Authorize]
+        public async Task<IActionResult> Post(SendMessageDto sendMessageDto)
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest("User ID not found in token");
+            }
+
+            var userId = userIdClaim.Value;
+            // Check if the user is connected
+            if (ChatHub.UserConnections.TryGetValue((sendMessageDto.ReceiverID).ToString(), out var connectionId))
+            {
+                await _hubContext.Clients.Client(connectionId).SendAsync("privateMessageMethodName", sendMessageDto.Message);
+                return Ok("Message sent successfully.");
+            }
+
+            return NotFound("User not connected.");
         }
 
         //============================================================================================//
-
+        /*
         // Start a new chat
         [HttpPost("StartChat")]
         [Authorize]
@@ -127,7 +150,7 @@ namespace U_Ride.Controllers
 
             return Ok(message);
         }
-
+        */
         // Get messages of a chat
         [HttpGet("GetMessages/{chatId}")]
         public async Task<IActionResult> GetMessages(int chatId)

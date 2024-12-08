@@ -18,8 +18,6 @@ namespace U_Ride.Models
 
         public double? Distance { get; set; }
 
-        public string? SocketID { get; set; }
-
         public bool IsDriver { get; set; } = true;
 
         public double? Price { get; set; }
