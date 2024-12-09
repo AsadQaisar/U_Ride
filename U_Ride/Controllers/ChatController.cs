@@ -40,7 +40,7 @@ namespace U_Ride.Controllers
         // </summary>
         // <param name="connectionId"></param>
         // <param name="message"></param>
-        
+
         /*
         [HttpPost("SendPrivateMessage")]
         public void Post(SendMessageDto sendMessageDto)
@@ -48,6 +48,8 @@ namespace U_Ride.Controllers
             _hubContext.Clients.Client(sendMessageDto.ConnectionID).SendAsync("privateMessageMethodName", sendMessageDto.Message);
         }
         */
+
+        // APPROACH # 1: CLIENT ID TO SEND PRIVATE MESSAGE
 
         [HttpPost("SendPrivateMessage")]
         [Authorize]
@@ -71,6 +73,30 @@ namespace U_Ride.Controllers
         }
 
         //============================================================================================//
+
+        // APPROACH # 2: USE PRIVATE GROUP TO SEND PRIVATE MESSAGES
+
+        [HttpPost("SendPersonalMessage")]
+        [Authorize]
+        public async Task<IActionResult> SendMessage([FromBody] SendMessageDto messageDto)
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest("User ID not found in token.");
+            }
+
+            var userId = userIdClaim.Value;
+            var receiverId = messageDto.ReceiverID.ToString();
+
+            // Send message to the receiver's group
+            await _hubContext.Clients.Group(receiverId).SendAsync("ReceiveMessage", userId, messageDto.Message);
+
+            return Ok("Message sent successfully.");
+        }
+
+        //============================================================================================//
+
         /*
         // Start a new chat
         [HttpPost("StartChat")]

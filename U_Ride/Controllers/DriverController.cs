@@ -25,6 +25,7 @@ namespace U_Ride.Controllers
             _rideService = rideService ?? throw new ArgumentNullException(nameof(rideService));
         }
 
+
         [HttpPost("PostRide")]
         [Authorize]
         public async Task<IActionResult> PostRide([FromBody] RideDto.PostRideDto postRideDto)

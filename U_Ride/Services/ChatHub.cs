@@ -1,17 +1,17 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Primitives;
+using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using U_Ride.Data;
 using U_Ride.Models;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace U_Ride.Services
 {
     public class ChatHub : Hub
     {
         private readonly SharedDb _shared;
-
-        public static Dictionary<string, string> UserConnections = new Dictionary<string, string>();
 
         public ChatHub(SharedDb shared)
         {
@@ -40,11 +40,16 @@ namespace U_Ride.Services
 
         //============================================================================================//
 
+        // APPROACH # 1: CLIENT ID TO SEND PRIVATE MESSAGE
+
+        public static Dictionary<string, string> UserConnections = new Dictionary<string, string>();
+
         public void GetDataFromClient(string userId, string connectionId)
         {
             Clients.Client(connectionId).SendAsync("clientMethodName", $"Updated userid {userId}");
         }
 
+        /*
         [Authorize]
         public override async Task OnConnectedAsync()
         {
@@ -74,6 +79,61 @@ namespace U_Ride.Services
 
             await base.OnConnectedAsync();
         }
+        
+        public override Task OnDisconnectedAsync(Exception exception)
+        {
+            var connectionId = Context.ConnectionId;
+            return base.OnDisconnectedAsync(exception);
+        }
+        */
+
+        //=============================================================================================//
+
+        // APPROACH # 2: USE PRIVATE GROUP TO SEND PRIVATE MESSAGES
+
+        public override async Task OnConnectedAsync()
+        {
+            var token = Context.GetHttpContext().Request.Query["access_token"];
+            var userId = ExtractUserIdFromToken(token);
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                await Clients.Client(Context.ConnectionId).SendAsync("WelcomeMethodName", Context.ConnectionId, userId);
+            }
+
+            await base.OnConnectedAsync();
+        }
+
+        // Add the user to the group based on their user ID
+        public async Task JoinGroup()
+        {
+            var token = Context.GetHttpContext()?.Request.Query["access_token"];
+
+            if (string.IsNullOrEmpty(token))
+            {
+                throw new InvalidOperationException("Access token is missing.");
+            }
+
+            var userId = ExtractUserIdFromToken(token);
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                throw new InvalidOperationException("User ID is invalid or missing from token.");
+            }
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, userId);
+        }
+
+        // Remove user from the group when they disconnect
+        public override async Task OnDisconnectedAsync(Exception exception)
+        {
+            var userId = Context.UserIdentifier;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, userId);
+            }
+            await base.OnDisconnectedAsync(exception);
+        }
 
         private string ExtractUserIdFromToken(string token)
         {
@@ -82,13 +142,7 @@ namespace U_Ride.Services
             return jwtToken?.Claims.FirstOrDefault(c => c.Type == "UserID")?.Value;
         }
 
-        public override Task OnDisconnectedAsync(Exception exception)
-        {
-            var connectionId = Context.ConnectionId;
-            return base.OnDisconnectedAsync(exception);
-        }
-
-        //=============================================================================================//
+        //============================================================================================//
 
         /*
         public override async Task OnConnectedAsync()
