@@ -34,7 +34,7 @@ namespace U_Ride.Models
 
         public Ride? Ride { get; set; }
 
-        public Booking? Booking { get; set; }
+        public ICollection<Booking>? Bookings { get; set; } = new List<Booking>();
 
         public Vehicle? Vehicle { get; set; }
     }

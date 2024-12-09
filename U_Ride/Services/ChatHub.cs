@@ -98,7 +98,7 @@ namespace U_Ride.Services
 
             if (!string.IsNullOrEmpty(userId))
             {
-                await Clients.Client(Context.ConnectionId).SendAsync("WelcomeMethodName", Context.ConnectionId, userId);
+                await Clients.Client(Context.ConnectionId).SendAsync("WelcomeMessage", Context.ConnectionId, userId);
             }
 
             await base.OnConnectedAsync();

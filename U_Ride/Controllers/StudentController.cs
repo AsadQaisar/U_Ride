@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using U_Ride.DTOs;
 using U_Ride.Models;
@@ -15,13 +16,15 @@ namespace U_Ride.Controllers
         private readonly ApplicationDbContext _context;
         private readonly JwtTokenService _tokenService;
         private readonly RideService _rideService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
         // Optimized constructor
-        public StudentController(JwtTokenService tokenService, ApplicationDbContext context, RideService rideService)
+        public StudentController(JwtTokenService tokenService, ApplicationDbContext context, RideService rideService, IHubContext<ChatHub> hubContext)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context)); // Ensure dependencies are not null
             _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
             _rideService = rideService ?? throw new ArgumentNullException(nameof(rideService));
+            _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
         }
 
 
@@ -93,24 +96,24 @@ namespace U_Ride.Controllers
                 // If a closest point within the radius is found, add the ride to matching rides
                 if (closestPoint.PointsWithinRadius.Count != 0)
                 {
-                    
+
                     var rideInfo = new RideInfo
                     {
+                        RideID = ride.Ride.RideID,
                         RouteMatched = closestPoint.PointsWithinRadius.Count,
-                        Price = ride.Ride.Price.ToString(), 
+                        StartPoint = ride.Ride.StartPoint,
+                        EndPoint = ride.Ride.EndPoint,
+                        EncodedPolyline = ride.Ride.EncodedPolyline,
+                        Price = ride.Ride.Price.ToString(),
                         AvailableSeats = ride.Ride.AvailableSeats.ToString()
                     };
                     var vehicleInfo = new VehicleInfo
                     {
                         VehicleType = ride.Vehicle.VehicleType,
-                        Make_Model = ($"{ ride.Vehicle.Color} {ride.Vehicle.Make} {ride.Vehicle.Model}"),
+                        Make_Model = ($"{ride.Vehicle.Color} {ride.Vehicle.Make} {ride.Vehicle.Model}"),
+                        Color = ride.Vehicle.Color,
                         LicensePlate = ride.Vehicle.LicensePlate
                     };
-                    // Create SocketConnection object
-                    //var socketConnection = new SocketConnection
-                    //{
-                    //    SocketID = Context.ConnectionId // Assuming you're in a SignalR Hub context
-                    //};
 
                     var userInfo = new UserInfo
                     {
@@ -120,13 +123,108 @@ namespace U_Ride.Controllers
                         PhoneNumber = ride.PhoneNumber,
                         VehicleInfo = vehicleInfo,
                         RideInfo = rideInfo,
-                        // SocketConnection = socketConnection
                     };
 
                     matchingRides.Add(userInfo);
                 }
             }
             return Ok(matchingRides);
+        }
+
+
+        [HttpPost("BookRide")]
+        [Authorize]
+        public async Task<IActionResult> BookRide([FromQuery] int RideId)
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest("User ID not found in token");
+            }
+
+            var userId = Convert.ToInt32(userIdClaim.Value);
+
+            var ride = await _context.Rides.FindAsync(RideId);
+            if (ride == null || ride.IsAvailable == false) return NotFound("Ride not available.");
+
+            // Deduct seat and update status
+            ride.AvailableSeats -= 1;
+            if (ride.AvailableSeats == 0)
+                ride.IsAvailable = false;
+
+            // Add booking
+            var booking = new Booking
+            {
+                RideID = RideId,
+                UserID = Convert.ToInt16(userId),
+                BookingDate = DateTime.UtcNow
+            };
+            await _context.Bookings.AddAsync(booking);
+            await _context.SaveChangesAsync();
+
+            // Send the message to the receiver's group
+            await _hubContext.Clients.Group(ride.UserID.ToString())
+                .SendAsync("ReceiveMessage", userId, "This user booked your ride.");
+            return Ok(new { Message = "Booking successful.", RideID = RideId, AvailableSeats = ride.AvailableSeats });
+        }
+
+
+        [HttpPost("CancelRide")]
+        [Authorize]
+        public async Task<IActionResult> CancelRide([FromQuery] int RideId)
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest("User ID not found in token.");
+            }
+
+            var userId = Convert.ToInt32(userIdClaim.Value);
+
+            // Find the booking for the given user and ride
+            var booking = await _context.Bookings.AsNoTracking().FirstOrDefaultAsync(b => b.RideID == RideId && b.UserID == userId);
+            if (booking == null)
+            {
+                return NotFound("Booking not found.");
+            }
+
+            var rideWithVehicle = await (from r in _context.Rides
+                                         join v in _context.Vehicles on r.UserID equals v.UserID
+                                         where r.RideID == RideId
+                                         select new
+                                         {
+                                             Ride = r,
+                                             Vehicle = v
+                                         }).FirstOrDefaultAsync();
+
+            if (rideWithVehicle == null)
+            {
+                return NotFound("Ride or vehicle not found.");
+            }
+
+            var ride = rideWithVehicle.Ride;
+            var vehicle = rideWithVehicle.Vehicle;
+
+            // Ensure the available seats don't exceed the total seat capacity of the vehicle
+            if (ride.AvailableSeats + 1 > vehicle.SeatCapacity - 1)
+            {
+                return BadRequest("Seat count exceeds the vehicle's capacity.");
+            }
+
+            // Remove the booking and update ride availability
+            ride.AvailableSeats += 1;
+
+            if (ride.AvailableSeats > 0)
+            {
+                ride.IsAvailable = true;
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Send the message to the receiver's group
+            await _hubContext.Clients.Group(ride.UserID.ToString())
+                .SendAsync("ReceiveMessage", userId, "This user canceled ride with you.");
+            return Ok(new { Message = "Ride canceled successfully.", RideID = RideId, AvailableSeats = ride.AvailableSeats });
         }
 
 
@@ -158,39 +256,5 @@ namespace U_Ride.Controllers
             }
             return BadRequest();
         }
-
-        //[HttpPost("BookRide")]
-        //public async Task<IActionResult> BookRide(int rideId, int studentId)
-        //{
-        //    var ride = await _context.Rides.FindAsync(rideId);
-        //    if (ride == null || ride.Status == "Full") return NotFound("Ride not available.");
-
-        //    // Deduct seat and update status
-        //    ride.AvailableSeats -= 1;
-        //    if (ride.AvailableSeats == 0)
-        //        ride.Status = "Full";
-
-        //    // Add booking
-        //    var booking = new Booking
-        //    {
-        //        RideId = rideId,
-        //        StudentId = studentId,
-        //        BookingDate = DateTime.UtcNow
-        //    };
-        //    await _context.Bookings.AddAsync(booking);
-        //    await _context.SaveChangesAsync();
-
-        //    return Ok(new { Message = "Booking successful.", RideId = rideId, AvailableSeats = ride.AvailableSeats });
-        //}
-
-        //[NonAction]
-        //public void PopulateUser()
-        //{
-        //    var Tbl_User = _context.Categories.Where(m => m.UserId == Global_Variables.LoginID).ToList();
-        //    var CategoryCollection = _context.Categories.ToList();
-        //    Category DefaultCategory = new Category() { CategoryId = 0, Title = "Choose a Category" };
-        //    Tbl_User.Insert(0, DefaultCategory);
-        //    ViewBag.Categories = Tbl_User;
-        //}
     }
 }

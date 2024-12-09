@@ -60,13 +60,19 @@ namespace U_Ride.DTOs
             public VehicleInfo? VehicleInfo { get; set; }
 
             public RideInfo RideInfo { get; set; }
-
-            public SocketConnection? SocketConnection { get; set; }
         }
 
         public class RideInfo
         {
-            public int RouteMatched { get; set; }
+            public int? RideID { get; set; }
+
+            public string? StartPoint { get; set; }
+
+            public string? EndPoint { get; set; }
+
+            public string? EncodedPolyline { get; set; }
+
+            public int? RouteMatched { get; set; }
 
             public string? Price { get; set; }
 
@@ -79,12 +85,9 @@ namespace U_Ride.DTOs
 
             public string Make_Model { get; set; }
 
-            public string LicensePlate { get; set; }
-        }
+            public string Color { get; set; }
 
-        public class SocketConnection
-        {
-            public string SocketID { get; set; }
+            public string LicensePlate { get; set; }
         }
 
         //================================================================================//

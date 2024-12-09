@@ -114,14 +114,12 @@ namespace U_Ride.Controllers
                     // Create RideInfo object
                     var rideInfo = new RideInfo
                     {
+                        RideID = ride.Ride.RideID,
                         RouteMatched = closestPoint.PointsWithinRadius.Count,
+                        StartPoint = ride.Ride.StartPoint,
+                        EndPoint = ride.Ride.EndPoint,
+                        EncodedPolyline = ride.Ride.EncodedPolyline
                     };
-
-                    // Create SocketConnection object
-                    //var socketConnection = new SocketConnection
-                    //{
-                    //    SocketID = Context.ConnectionId // Assuming you're in a SignalR Hub context
-                    //};
 
                     // Create UserInfo object
                     var userInfo = new UserInfo
@@ -131,7 +129,6 @@ namespace U_Ride.Controllers
                         Gender = ride.Gender,
                         PhoneNumber = ride.PhoneNumber,
                         RideInfo = rideInfo,
-                        // SocketConnection = socketConnection
                     };
 
                     // Add the UserInfo to the list of matching rides or process further
@@ -142,20 +139,88 @@ namespace U_Ride.Controllers
         }
 
 
-        [HttpPost("UpdateSeats")]
-        public async Task<IActionResult> UpdateSeats(int rideId)
+        [HttpPost("CompleteRide")]
+        [Authorize]
+        public async Task<IActionResult> CompleteRide([FromQuery] int RideId)
         {
-            var ride = await _context.Rides.FindAsync(rideId);
-            if (ride == null || ride.AvailableSeats <= 0) return NotFound("Ride not available");
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest("User ID not found in token.");
+            }
 
-            ride.AvailableSeats -= 1;
+            var userId = Convert.ToInt32(userIdClaim.Value);
 
-            if (ride.AvailableSeats == 0)
-                ride.IsAvailable = false;
+            // Fetch the ride assigned to the driver
+            var ride = await _context.Rides.FirstOrDefaultAsync(r => r.RideID == RideId && r.UserID == userId);
+            if (ride == null)
+            {
+                return NotFound("Ride not found or unauthorized access.");
+            }
+
+            // Check if the ride is already completed
+            if (ride.IsAvailable == false)
+            {
+                return BadRequest("Ride is already marked as completed.");
+            }
+
+            // Update the ride status to completed
+            ride.IsAvailable = false;
+
+            var rideWithVehicle = await (from r in _context.Rides
+                                         join v in _context.Vehicles on r.UserID equals v.UserID
+                                         where r.RideID == RideId
+                                         select new
+                                         {
+                                             Ride = r,
+                                             Vehicle = v
+                                         }).FirstOrDefaultAsync();
+
+            if (rideWithVehicle == null)
+            {
+                return NotFound("Ride or vehicle not found.");
+            }
+
+            var Ride = rideWithVehicle.Ride;
+            var vehicle = rideWithVehicle.Vehicle;
+
+            Ride.AvailableSeats = vehicle.SeatCapacity - 1;
+
+            // Save changes to the database
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                Message = "Ride marked as completed successfully.",
+                RideID = RideId,
+            });
+        }
+
+
+        [HttpPost("ConfirmRides")]
+        [Authorize]
+        public async Task<IActionResult> ConfirmRide([FromQuery] int RideId)
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest("User ID not found in token.");
+            }
+
+            var userId = Convert.ToInt32(userIdClaim.Value);
+
+            // Fetch the ride assigned to the driver
+            var ride = await _context.Rides.FirstOrDefaultAsync(r => r.RideID == RideId && r.UserID == userId);
+            if (ride == null)
+            {
+                return NotFound("Ride not found or unauthorized access.");
+            }
+
+            ride.IsAvailable = false;
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Seat updated.", AvailableSeats = ride.AvailableSeats });
+            return Ok(new { Message = "Ride Confirmed.", AvailableSeats = ride.AvailableSeats });
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -6,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using U_Ride.DTOs;
 using U_Ride.Models;
 using U_Ride.Services;
+using static U_Ride.DTOs.RideDto;
 
 namespace U_Ride.Controllers
 {
@@ -28,7 +30,7 @@ namespace U_Ride.Controllers
         // Send message to all
         // </summary>
         // <param name="message"></param>
-        
+
         [HttpPost("{message}")]
         public void Post(string message)
         {
@@ -87,10 +89,84 @@ namespace U_Ride.Controllers
             }
 
             var userId = userIdClaim.Value;
-            var receiverId = messageDto.ReceiverID.ToString();
 
-            // Send message to the receiver's group
-            await _hubContext.Clients.Group(receiverId).SendAsync("ReceiveMessage", userId, messageDto.Message);
+            // Check if a chat exists between the student and the driver
+            var chat = await _context.Chats.Include(m => m.Messages).FirstOrDefaultAsync(c =>
+                (c.StudentID == messageDto.ReceiverID && c.DriverID == Convert.ToInt16(userId)) ||
+                (c.StudentID == Convert.ToInt16(userId) && c.DriverID == messageDto.ReceiverID)
+            );
+
+            if (chat == null)
+            {
+                var userInfo = await _context.Users
+                    .AsNoTracking()
+                    .Where(u => u.UserID == Convert.ToInt16(userId))
+                    .Select(u => new UserInfo
+                    {
+                        UserID = u.UserID,
+                        FullName = u.FullName,
+                        Gender = u.Gender,
+                        PhoneNumber = u.PhoneNumber,
+                        RideInfo = new RideInfo
+                        {
+                            StartPoint = u.Ride.StartPoint,
+                            EndPoint = u.Ride.EndPoint,
+                            EncodedPolyline = u.Ride.EncodedPolyline
+                        },
+                        VehicleInfo = u.Vehicle == null ? null : new VehicleInfo
+                        {
+                            VehicleType = u.Vehicle.VehicleType,
+                            Make_Model = u.Vehicle.Make + " " + u.Vehicle.Model,
+                            Color = u.Vehicle.Color,
+                            LicensePlate = u.Vehicle.LicensePlate
+                        }
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (userInfo == null)
+                {
+                    return NotFound("Ride information not found.");
+                }
+
+                // Send intro message to the receiver
+                await _hubContext.Clients.Group(messageDto.ReceiverID.ToString())
+                    .SendAsync("IntroMessage", userInfo);
+
+                // Create a new chat
+                chat = new Chat
+                {
+                    StudentID = messageDto.ReceiverID,
+                    DriverID = Convert.ToInt16(userId),
+                    StartedOn = DateTime.UtcNow,
+                    Messages = new List<Message>
+                    {
+                        new Message
+                        {
+                            SenderID = Convert.ToInt16(userId),
+                            MessageContent = messageDto.Message,
+                            SentOn = DateTime.UtcNow
+                        }
+                    }
+                };
+                _context.Chats.Add(chat);
+            }
+            else
+            {
+                // Add a new message to the existing chat
+                chat.Messages?.Add(new Message
+                {
+                    SenderID = Convert.ToInt16(userId),
+                    MessageContent = messageDto.Message,
+                    SentOn = DateTime.UtcNow
+                });
+            }
+
+            // Send the message to the receiver's group
+            await _hubContext.Clients.Group(messageDto.ReceiverID.ToString())
+                .SendAsync("ReceiveMessage", userId, messageDto.Message);
+
+            // Save changes to the database
+            await _context.SaveChangesAsync();
 
             return Ok("Message sent successfully.");
         }
