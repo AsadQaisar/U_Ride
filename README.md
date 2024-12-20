@@ -48,6 +48,14 @@ U_Ride is a ride-sharing application designed to connect university students wit
 
 ---
 
+### **Architecture Flowchart**
+For a detailed understanding of the project’s architecture, including workflows for ride calculations and real-time chat, refer to the flowchart below:
+
+#### **Flowchart**
+[URide_Processflow.pdf](https://github.com/user-attachments/files/18215946/URide_Processflow.pdf)
+
+---
+
 ### **How to Test Without Frontend**
 1. **SignalR Hub Connection**:
    - Use tools like [Postman](https://www.postman.com/) or [Swagger](https://swagger.io/) to test the APIs.  
