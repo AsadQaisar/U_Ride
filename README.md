@@ -59,7 +59,8 @@ For a detailed understanding of the project’s architecture, including workflow
 ### **How to Test Without Frontend**
 1. **SignalR Hub Connection**:
    - Use tools like [Postman](https://www.postman.com/) or [Swagger](https://swagger.io/) to test the APIs.  
-   - Connect to the SignalR hub using a WebSocket client like [wscat](https://github.com/websockets/wscat).  
+   - Connect to the SignalR hub using a WebSocket client like [wscat](https://github.com/websockets/wscat).
+   - Use react apps in "Chat_Testing" folder.
 
 2. **Testing Steps**:
    - Initiate a chat by posting a message to the chat API with `ChatID` and `SenderID`.  
