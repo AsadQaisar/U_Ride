@@ -7,7 +7,9 @@ Deployments/
 
 Materials/
 
-Chat_Testing/
+Chat_Testing/chat-app/
+Chat_Testing/notification-app/
+
 # User-specific files
 *.rsuser
 *.suo
