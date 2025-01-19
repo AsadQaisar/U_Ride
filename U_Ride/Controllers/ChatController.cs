@@ -96,7 +96,17 @@ namespace U_Ride.Controllers
                 (c.StudentID == Convert.ToInt16(userId) && c.DriverID == messageDto.ReceiverID)
             );
 
-            if (chat == null)
+            if (chat != null)
+            {
+                // Add a new message to the existing chat
+                chat.Messages?.Add(new Message
+                {
+                    SenderID = Convert.ToInt16(userId),
+                    MessageContent = messageDto.Message,
+                    SentOn = DateTime.UtcNow
+                });
+            }
+            else
             {
                 var userInfo = await _context.Users
                     .AsNoTracking()
@@ -128,10 +138,6 @@ namespace U_Ride.Controllers
                     return NotFound("Ride information not found.");
                 }
 
-                // Send intro message to the receiver
-                await _hubContext.Clients.Group(messageDto.ReceiverID.ToString())
-                    .SendAsync("IntroMessage", userInfo);
-
                 // Create a new chat
                 chat = new Chat
                 {
@@ -149,23 +155,20 @@ namespace U_Ride.Controllers
                     }
                 };
                 _context.Chats.Add(chat);
-            }
-            else
-            {
-                // Add a new message to the existing chat
-                chat.Messages?.Add(new Message
-                {
-                    SenderID = Convert.ToInt16(userId),
-                    MessageContent = messageDto.Message,
-                    SentOn = DateTime.UtcNow
-                });
+
+                // Save changes to the database
+                await _context.SaveChangesAsync();
+
+                // Send intro message to the receiver
+                await _hubContext.Clients.Group(messageDto.ReceiverID.ToString())
+                    .SendAsync("IntroMessage", new { ChatID = chat.ChatID, UserInfo = userInfo });
             }
 
             // Send the message to the receiver's group
             await _hubContext.Clients.Group(messageDto.ReceiverID.ToString())
                 .SendAsync("ReceiveMessage", userId, messageDto.Message);
 
-            // Save changes to the database
+            // Save changes (if a new message was added to an existing chat)
             await _context.SaveChangesAsync();
 
             return Ok("Message sent successfully.");
@@ -254,19 +257,56 @@ namespace U_Ride.Controllers
         }
         */
         // Get messages of a chat
-        [HttpGet("GetMessages/{chatId}")]
-        public async Task<IActionResult> GetMessages(int chatId)
+        [Authorize]
+        [HttpGet("GetMessages")]
+        public async Task<IActionResult> GetMessages([FromQuery] int chatId)
         {
-            var messages = await _context.Messages
-                .Where(m => m.ChatID == chatId)
-                .OrderBy(m => m.SentOn)
-                .ToListAsync();
+            // Validate user ID from the token
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return Unauthorized("User ID not found in token.");
+            }
 
-            if (!messages.Any())
-                return NotFound("No messages found for this chat.");
+            var userId = Convert.ToInt16(userIdClaim.Value);
 
-            return Ok(messages);
+            // Retrieve the chat and its messages
+            var chat = await _context.Chats
+                .Include(c => c.Messages).AsNoTracking()
+                .FirstOrDefaultAsync(c => c.ChatID == chatId);
+
+            if (chat == null)
+            {
+                return NotFound("Chat not found.");
+            }
+
+            // Ensure the user is part of the chat
+            if (chat.StudentID != userId && chat.DriverID != userId)
+            {
+                return Forbid("You are not authorized to view this chat.");
+            }
+
+            // Prepare a response in a user-friendly format
+            var response = new
+            {
+                ChatID = chat.ChatID,
+                Participants = new
+                {
+                    StudentID = chat.StudentID,
+                    DriverID = chat.DriverID
+                },
+                Messages = chat.Messages.OrderBy(m => m.SentOn).Select(m => new
+                {
+                    MessageID = m.MessageID,
+                    SenderID = m.SenderID,
+                    MessageContent = m.MessageContent,
+                    SentOn = m.SentOn.ToString("yyyy-MM-dd HH:mm:ss")
+                })
+            };
+
+            return Ok(response);
         }
+
 
         // Join a chat group (SignalR specific)
         [HttpPost("JoinChat")]

@@ -17,7 +17,7 @@ const App = () => {
   
     const connectToSignalR = async () => {
       const conn = new signalR.HubConnectionBuilder()
-        .withUrl("https://uride.somee.com/Chat", {
+        .withUrl("https://localhost:7213/Chat", {
           accessTokenFactory: () => token,
         })
         .withAutomaticReconnect()
@@ -28,8 +28,10 @@ const App = () => {
         setUserId(userId);
       });
   
-      conn.on("IntroMessage", (userInfo) => {
-        console.log("User Information: ", userInfo);
+      conn.on("IntroMessage", (data) => {
+        const { ChatID, UserInfo } = data;
+        console.log("Chat ID:", data.chatID);
+        console.log("User Information: ", data.userInfo);
       });
 
       conn.on("ReceiveMessage", (senderId, receivedMessage) => {
@@ -72,7 +74,7 @@ const App = () => {
     e.preventDefault();
     if (token && receiverId && message) {
       try {
-        const response = await fetch("https://uride.somee.com/Chat/SendPersonalMessage", {
+        const response = await fetch("https://localhost:7213/Chat/SendPersonalMessage", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
