@@ -159,9 +159,20 @@ namespace U_Ride.Controllers
                 // Save changes to the database
                 await _context.SaveChangesAsync();
 
-                // Send intro message to the receiver
-                await _hubContext.Clients.Group(messageDto.ReceiverID.ToString())
-                    .SendAsync("IntroMessage", new { ChatID = chat.ChatID, UserInfo = userInfo });
+                // List of participants (sender and receiver)
+                var participants = new List<(int userId, object userInfo)>
+                {
+                    (messageDto.ReceiverID, userInfo),  // Receiver gets sender's info
+                    (Convert.ToInt16(userId), null)      // Sender gets no info
+                };
+
+                foreach (var (participantId, info) in participants)
+                {
+                    // Send the message to each participant
+                    await _hubContext.Clients.Group(participantId.ToString())
+                        .SendAsync("IntroMessage", new { ChatID = chat.ChatID, UserInfo = info });
+                }
+
             }
 
             // Send the message to the receiver's group
