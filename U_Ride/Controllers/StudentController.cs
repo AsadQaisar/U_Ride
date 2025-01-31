@@ -229,7 +229,7 @@ namespace U_Ride.Controllers
 
 
         [HttpGet("Ride_Calculation")]
-        public async Task<IActionResult> RideCalculation([FromBody] RideDto.PostRideDto postRideDto)
+        public async Task<IActionResult> Ride_Calculation([FromBody] RideDto.PostRideDto postRideDto)
         {
             var distance = await _rideService.CalculateRouteDistanceAsync(postRideDto.StartPoint, postRideDto.EndPoint);
             if (distance is not null)

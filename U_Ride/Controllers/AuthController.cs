@@ -158,7 +158,7 @@ namespace U_Ride.Controllers
 
         [HttpPut("IsDriver")]
         [Authorize]
-        public async Task<IActionResult> SetDriverStatus([FromBody] AuthDto.IsDriverDto isDriverDto)
+        public async Task<IActionResult> IsDriver([FromBody] AuthDto.IsDriverDto isDriverDto)
         {
             if (!ModelState.IsValid)
             {
@@ -226,7 +226,7 @@ namespace U_Ride.Controllers
 
         [HttpGet("UserInfo")]
         [Authorize]
-        public async Task<IActionResult> GetUserInfo()
+        public async Task<IActionResult> UserInfo()
         {
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)

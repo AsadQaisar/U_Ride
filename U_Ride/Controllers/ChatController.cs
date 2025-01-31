@@ -55,7 +55,7 @@ namespace U_Ride.Controllers
 
         [HttpPost("SendPrivateMessage")]
         [Authorize]
-        public async Task<IActionResult> Post(SendMessageDto sendMessageDto)
+        public async Task<IActionResult> SendPrivateMessage(SendMessageDto sendMessageDto)
         {
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
@@ -80,7 +80,7 @@ namespace U_Ride.Controllers
 
         [HttpPost("SendPersonalMessage")]
         [Authorize]
-        public async Task<IActionResult> SendMessage([FromBody] SendMessageDto messageDto)
+        public async Task<IActionResult> SendPersonalMessage([FromBody] SendMessageDto messageDto)
         {
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)

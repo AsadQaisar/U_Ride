@@ -199,7 +199,7 @@ namespace U_Ride.Controllers
 
         [HttpPost("ConfirmRides")]
         [Authorize]
-        public async Task<IActionResult> ConfirmRide([FromQuery] int RideId)
+        public async Task<IActionResult> ConfirmRides([FromQuery] int RideId)
         {
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
