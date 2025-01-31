@@ -48,8 +48,11 @@ U_Ride is a ride-sharing application designed to connect university students wit
 
 ---
 
-### **Architecture Flowchart**
-For a detailed understanding of the project’s architecture, including workflows for ride calculations and real-time chat, refer to the flowchart below:
+### **Architecture**
+For a detailed understanding of the project’s architecture, including workflows for ride calculations and real-time chat, refer to the charts below:
+
+#### **Processflow**
+![Image](https://github.com/user-attachments/assets/07663846-3866-492b-b993-a52c6e6aa6a8)
 
 #### **Flowchart**
 ![Processflow](https://github.com/user-attachments/assets/f215f058-19ae-4be4-9747-830c2b9ffb89)
