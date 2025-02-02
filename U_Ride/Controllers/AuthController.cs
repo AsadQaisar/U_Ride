@@ -117,7 +117,7 @@ namespace U_Ride.Controllers
 
             // Fetch associated vehicle info if the user has one
             AuthDto.VehicleInfo? vehicleInfo = null;
-            if (user.HasVehicle)
+            if (user.HasVehicle == true)
             {
                 var vehicle = await _context.Vehicles.AsNoTracking()
                     .FirstOrDefaultAsync(v => v.UserID == user.UserID);
@@ -156,9 +156,37 @@ namespace U_Ride.Controllers
         }
 
 
-        [HttpPut("IsDriver")]
+        [HttpPost("IsDriver")]
         [Authorize]
-        public async Task<IActionResult> IsDriver([FromBody] AuthDto.IsDriverDto isDriverDto)
+        public async Task<IActionResult> IsDriver([FromQuery] bool hasVehicle)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest("User ID not found in token");
+            }
+
+            var userId = Convert.ToInt32(userIdClaim.Value);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == userId);
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+            user.HasVehicle = hasVehicle;
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+            return Ok("User and vehicle information updated.");
+        }
+
+
+        [HttpPut("RegisterVehicle")]
+        [Authorize]
+        public async Task<IActionResult> RegisterVehicle([FromBody] AuthDto.RegVehicleDto reqVehicleDto)
         {
             if (!ModelState.IsValid)
             {
@@ -182,19 +210,19 @@ namespace U_Ride.Controllers
             _context.Users.Update(user);
 
             // If the user is a driver, save vehicle details
-            if (user.HasVehicle)
+            if (user.HasVehicle == true)
             {
                 var existingVehicle = await _context.Vehicles.FirstOrDefaultAsync(v => v.UserID == userId);
                 if (existingVehicle != null)
                 {
                     // Update existing vehicle record
-                    existingVehicle.Make = isDriverDto.Make;
-                    existingVehicle.Model = isDriverDto.Model;
-                    existingVehicle.LicensePlate = isDriverDto.LicensePlate;
-                    existingVehicle.Year = isDriverDto.Year;
-                    existingVehicle.Color = isDriverDto.Color;
-                    existingVehicle.VehicleType = isDriverDto.VehicleType;
-                    existingVehicle.SeatCapacity = isDriverDto.SeatCapacity;
+                    existingVehicle.Make = reqVehicleDto.Make;
+                    existingVehicle.Model = reqVehicleDto.Model;
+                    existingVehicle.LicensePlate = reqVehicleDto.LicensePlate;
+                    existingVehicle.Year = reqVehicleDto.Year;
+                    existingVehicle.Color = reqVehicleDto.Color;
+                    existingVehicle.VehicleType = reqVehicleDto.VehicleType;
+                    existingVehicle.SeatCapacity = reqVehicleDto.SeatCapacity;
                     existingVehicle.LastModifiedOn = DateTime.UtcNow;
 
                     _context.Vehicles.Update(existingVehicle);
@@ -205,13 +233,13 @@ namespace U_Ride.Controllers
                     var newVehicle = new Vehicle
                     {
                         UserID = userId,
-                        Make = isDriverDto.Make,
-                        Model = isDriverDto.Model,
-                        LicensePlate = isDriverDto.LicensePlate,
-                        Year = isDriverDto.Year,
-                        Color = isDriverDto.Color,
-                        VehicleType = isDriverDto.VehicleType,
-                        SeatCapacity = isDriverDto.SeatCapacity,
+                        Make = reqVehicleDto.Make,
+                        Model = reqVehicleDto.Model,
+                        LicensePlate = reqVehicleDto.LicensePlate,
+                        Year = reqVehicleDto.Year,
+                        Color = reqVehicleDto.Color,
+                        VehicleType = reqVehicleDto.VehicleType,
+                        SeatCapacity = reqVehicleDto.SeatCapacity,
                         CreatedOn = DateTime.UtcNow
                     };
                     await _context.Vehicles.AddAsync(newVehicle);
@@ -245,7 +273,7 @@ namespace U_Ride.Controllers
             // Check if user has a vehicle and include vehicle information if available
             object userInfo;
 
-            if (user.HasVehicle)
+            if (user.HasVehicle == true)
             {
                 var vehicle = await _context.Vehicles.AsNoTracking()
                     .FirstOrDefaultAsync(v => v.UserID == userId);

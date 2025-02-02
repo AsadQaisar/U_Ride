@@ -26,9 +26,9 @@ namespace U_Ride.Models
         
         public DateTime LastModifiedOn { get; set; }
         
-        public bool HasVehicle { get; set; }
+        public bool? HasVehicle { get; set; }
 
-        public double DriverRating { get; set; }
+        public double? DriverRating { get; set; }
         
         public bool IsActive { get; set; }
 

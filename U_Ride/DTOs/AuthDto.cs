@@ -63,7 +63,7 @@
 
         //================================================================================//
 
-        public class IsDriverDto
+        public class RegVehicleDto
         {
             public string Make { get; set; }
 
