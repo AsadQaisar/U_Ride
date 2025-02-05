@@ -178,7 +178,7 @@ namespace U_Ride.Controllers
 
             if (rideWithVehicle == null)
             {
-                return NotFound(new { message = "Ride or vehicle not found.");
+                return NotFound(new { message = "Ride or vehicle not found." });
             }
 
             var Ride = rideWithVehicle.Ride;
