@@ -33,7 +33,7 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token");
+                return BadRequest(new { message = "User ID not found in token" });
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
@@ -41,7 +41,7 @@ namespace U_Ride.Controllers
             var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.UserID == userId);
             if (vehicle == null)
             {
-                return BadRequest("Vehicle not registered");
+                return BadRequest(new { message = "Vehicle not registered" });
             }
 
             int availableSeats = vehicle.SeatCapacity - 1;
@@ -146,7 +146,7 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token.");
+                return BadRequest(new { message = "User ID not found in token." });
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
@@ -155,13 +155,13 @@ namespace U_Ride.Controllers
             var ride = await _context.Rides.FirstOrDefaultAsync(r => r.RideID == RideId && r.UserID == userId);
             if (ride == null)
             {
-                return NotFound("Ride not found or unauthorized access.");
+                return NotFound(new { message = "Ride not found or unauthorized access." });
             }
 
             // Check if the ride is already completed
             if (ride.IsAvailable == false)
             {
-                return BadRequest("Ride is already marked as completed.");
+                return BadRequest(new { message = "Ride is already marked as completed." });
             }
 
             // Update the ride status to completed
@@ -178,7 +178,7 @@ namespace U_Ride.Controllers
 
             if (rideWithVehicle == null)
             {
-                return NotFound("Ride or vehicle not found.");
+                return NotFound(new { message = "Ride or vehicle not found.");
             }
 
             var Ride = rideWithVehicle.Ride;
@@ -204,7 +204,7 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token.");
+                return BadRequest(new { message = "User ID not found in token." });
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
@@ -213,7 +213,7 @@ namespace U_Ride.Controllers
             var ride = await _context.Rides.FirstOrDefaultAsync(r => r.RideID == RideId && r.UserID == userId);
             if (ride == null)
             {
-                return NotFound("Ride not found or unauthorized access.");
+                return NotFound(new { message = "Ride not found or unauthorized access." });
             }
 
             ride.IsAvailable = false;

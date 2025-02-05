@@ -35,7 +35,7 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token");
+                return BadRequest(new { message = "User ID not found in token" });
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
@@ -139,13 +139,13 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token");
+                return BadRequest(new { message = "User ID not found in token" });
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
 
             var ride = await _context.Rides.FindAsync(RideId);
-            if (ride == null || ride.IsAvailable == false) return NotFound("Ride not available.");
+            if (ride == null || ride.IsAvailable == false) return NotFound(new { message = "Ride not available." });
 
             // Deduct seat and update status
             ride.AvailableSeats -= 1;
@@ -176,7 +176,7 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token.");
+                return BadRequest(new { message = "User ID not found in token."});
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
@@ -185,7 +185,7 @@ namespace U_Ride.Controllers
             var booking = await _context.Bookings.AsNoTracking().FirstOrDefaultAsync(b => b.RideID == RideId && b.UserID == userId);
             if (booking == null)
             {
-                return NotFound("Booking not found.");
+                return NotFound(new { message = "Booking not found." });
             }
 
             var rideWithVehicle = await (from r in _context.Rides
@@ -199,7 +199,7 @@ namespace U_Ride.Controllers
 
             if (rideWithVehicle == null)
             {
-                return NotFound("Ride or vehicle not found.");
+                return NotFound(new { message = "Ride or vehicle not found." });
             }
 
             var ride = rideWithVehicle.Ride;
@@ -208,7 +208,7 @@ namespace U_Ride.Controllers
             // Ensure the available seats don't exceed the total seat capacity of the vehicle
             if (ride.AvailableSeats + 1 > vehicle.SeatCapacity - 1)
             {
-                return BadRequest("Seat count exceeds the vehicle's capacity.");
+                return BadRequest(new { message = "Seat count exceeds the vehicle's capacity." });
             }
 
             // Remove the booking and update ride availability

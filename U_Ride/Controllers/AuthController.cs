@@ -180,7 +180,11 @@ namespace U_Ride.Controllers
             user.HasVehicle = hasVehicle;
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
-            return Ok(new { message = "User and vehicle information updated." });
+            return Ok(new
+            {
+                message = "User information updated.",
+                isDriver = hasVehicle
+            });
         }
 
 

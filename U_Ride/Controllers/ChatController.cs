@@ -60,7 +60,7 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token");
+                return BadRequest(new { message = "User ID not found in token" });
             }
 
             var userId = userIdClaim.Value;
@@ -71,7 +71,7 @@ namespace U_Ride.Controllers
                 return Ok("Message sent successfully.");
             }
 
-            return NotFound("User not connected.");
+            return NotFound(new { message = "User not connected." });
         }
 
         //============================================================================================//
@@ -85,7 +85,7 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token.");
+                return BadRequest(new { message = "User ID not found in token." });
             }
 
             var userId = userIdClaim.Value;
@@ -135,7 +135,7 @@ namespace U_Ride.Controllers
 
                 if (userInfo == null)
                 {
-                    return NotFound("Ride information not found.");
+                    return NotFound(new { message = "Ride information not found." });
                 }
 
                 // Create a new chat
@@ -182,7 +182,7 @@ namespace U_Ride.Controllers
             // Save changes (if a new message was added to an existing chat)
             await _context.SaveChangesAsync();
 
-            return Ok("Message sent successfully.");
+            return Ok(new { message = "Message sent successfully." });
         }
 
         //============================================================================================//
@@ -276,7 +276,7 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return Unauthorized("User ID not found in token.");
+                return Unauthorized(new { message = "User ID not found in token." });
             }
 
             var userId = Convert.ToInt16(userIdClaim.Value);
@@ -288,13 +288,13 @@ namespace U_Ride.Controllers
 
             if (chat == null)
             {
-                return NotFound("Chat not found.");
+                return NotFound(new { message = "Chat not found." });
             }
 
             // Ensure the user is part of the chat
             if (chat.StudentID != userId && chat.DriverID != userId)
             {
-                return Forbid("You are not authorized to view this chat.");
+                return Unauthorized(new { message = "You are not authorized to view this chat." });
             }
 
             // Prepare a response in a user-friendly format
@@ -324,7 +324,7 @@ namespace U_Ride.Controllers
         public async Task<IActionResult> JoinChat([FromBody] JoinChatDto dto)
         {
             await _hubContext.Groups.AddToGroupAsync(dto.ConnectionId, dto.ChatId.ToString());
-            return Ok("Joined chat group.");
+            return Ok(new { message = "Joined chat group." });
         }
     }
 }
