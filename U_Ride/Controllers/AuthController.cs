@@ -44,7 +44,7 @@ namespace U_Ride.Controllers
 
                 if (user == null)
                 {
-                    return NotFound("User not found.");
+                    return NotFound(new { message = "User not found." });
                 }
 
                 // Check if another user has the same SeatNumber or PhoneNumber
@@ -54,7 +54,7 @@ namespace U_Ride.Controllers
 
                 if (isDuplicate)
                 {
-                    return Conflict("Seat Number or Phone Number is already in use by another user.");
+                    return Conflict(new { message = "Seat Number or Phone Number is already in use by another user." });
                 }
 
                 // Update user details
@@ -78,7 +78,7 @@ namespace U_Ride.Controllers
 
                 if (existingUser != null)
                 {
-                    return Conflict("User with the same Seat Number or Phone Number already exists.");
+                    return Conflict(new { message = "User with the same Seat Number or Phone Number already exists." });
                 }
 
                 // Create new user
@@ -98,7 +98,7 @@ namespace U_Ride.Controllers
             }
             await _context.SaveChangesAsync();
 
-            return Ok("User information saved successfully.");
+            return Ok(new { message = "User information saved successfully." });
         }
 
 
@@ -112,7 +112,7 @@ namespace U_Ride.Controllers
             if (user == null || !user.IsActive ||
                 _passwordHasher.VerifyHashedPassword(user, user.Password, loginDto.Password) == PasswordVerificationResult.Failed)
             {
-                return Unauthorized("Invalid credentials or inactive account.");
+                return Unauthorized(new { message = "Invalid credentials or inactive account." });
             }
 
             // Fetch associated vehicle info if the user has one
@@ -168,19 +168,19 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token");
+                return BadRequest(new { message = "User ID not found in token" });
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == userId);
             if (user == null)
             {
-                return NotFound("User not found");
+                return NotFound(new { message = "User not found" });
             }
             user.HasVehicle = hasVehicle;
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
-            return Ok("User and vehicle information updated.");
+            return Ok(new { message = "User and vehicle information updated." });
         }
 
 
@@ -196,14 +196,14 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token");
+                return BadRequest(new { message = "User ID not found in token" });
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.UserID == userId);
             if (user == null)
             {
-                return NotFound("User not found");
+                return NotFound(new { message = "User not found" });
             }
 
             user.HasVehicle = true;
@@ -248,7 +248,7 @@ namespace U_Ride.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok("User and vehicle information updated.");
+            return Ok(new { message = "User and vehicle information updated." });
         }
 
 
@@ -259,7 +259,7 @@ namespace U_Ride.Controllers
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return BadRequest("User ID not found in token");
+                return BadRequest(new { message = "User ID not found in token" });
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
@@ -267,7 +267,7 @@ namespace U_Ride.Controllers
                 .FirstOrDefaultAsync(u => u.UserID == userId);
             if (user == null)
             {
-                return NotFound("User not found");
+                return NotFound(new { message = "User not found" });
             }
 
             // Check if user has a vehicle and include vehicle information if available
