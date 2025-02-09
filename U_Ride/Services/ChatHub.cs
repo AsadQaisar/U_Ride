@@ -93,7 +93,9 @@ namespace U_Ride.Services
 
         public override async Task OnConnectedAsync()
         {
-            var token = Context.GetHttpContext().Request.Query["access_token"];
+            //var token = Context.GetHttpContext().Request.Query["access_token"];
+            var httpContext = Context.GetHttpContext();
+            var token = httpContext.Request.Headers["Authorization"];
             var userId = ExtractUserIdFromToken(token);
 
             if (!string.IsNullOrEmpty(userId))

@@ -7,9 +7,9 @@ namespace U_Ride.Models
         [Key]
         public int ChatID { get; set; } // Primary Key
         
-        public int StudentID { get; set; } // Foreign Key
+        public int ReceiverID { get; set; } // Foreign Key
         
-        public int DriverID { get; set; } // Foreign Key
+        public int SenderID { get; set; } // Foreign Key
 
         public ICollection<Message>? Messages { get; set; } = new List<Message>();
 

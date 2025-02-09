@@ -42,9 +42,11 @@
 
             public string PhoneNumber { get; set; }
 
+            public List<int>? ChatIDs { get; set; } = new List<int>();
+
             public VehicleInfo? Vehicle { get; set; }
 
-            public Authorization Authorization { get; set; }
+            public Authorization? Authorization { get; set; }
         }
 
         public class VehicleInfo
@@ -58,7 +60,7 @@
 
         public class Authorization
         {
-            public string token { get; set; }
+            public string? token { get; set; }
         }
 
         //================================================================================//

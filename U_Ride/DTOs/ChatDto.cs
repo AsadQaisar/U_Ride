@@ -16,11 +16,28 @@
         public string Message { get; set; }
     }
 
-    public class JoinChatDto
+    public class GetMessagesDto
     {
-        public string ConnectionId { get; set; }
-       
-        public int ChatId { get; set; }
+        public List<int>? ChatIDs { get; set; } = new List<int>();
+    }
+
+    public class MessaageInfoDto
+    {
+        public int MessageID { get; set; }
+
+        public string? MessageContent { get; set; }
+
+        public string? SentOn { get; set; }
+
+    }
+
+    public class ChatInfoDto
+    {
+        public int ChatID { get; set; }
+
+        public AuthDto.UserInfo? UserInfo { get; set; }
+
+        public MessaageInfoDto? MessaageInfo { get; set; }
     }
 
 }

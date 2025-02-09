@@ -133,6 +133,13 @@ namespace U_Ride.Controllers
                 }
             }
 
+            // Fetch chat IDs of the user
+            var chatIds = await _context.Chats
+                .AsNoTracking()
+                .Where(c => c.ReceiverID == user.UserID || c.SenderID == user.UserID)
+                .Select(c => c.ChatID)
+                .ToListAsync();
+
             // Generate the token for the user
             var token = _tokenService.GenerateToken(user); // Replace with your actual token generation logic
 
@@ -144,6 +151,7 @@ namespace U_Ride.Controllers
                 SeatNumber = user.SeatNumber,
                 Gender = user.Gender,
                 PhoneNumber = user.PhoneNumber,
+                ChatIDs = chatIds,
                 Vehicle = vehicleInfo,
                 Authorization = new Authorization
                 {

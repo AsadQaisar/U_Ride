@@ -92,8 +92,8 @@ namespace U_Ride.Controllers
 
             // Check if a chat exists between the student and the driver
             var chat = await _context.Chats.Include(m => m.Messages).FirstOrDefaultAsync(c =>
-                (c.StudentID == messageDto.ReceiverID && c.DriverID == Convert.ToInt16(userId)) ||
-                (c.StudentID == Convert.ToInt16(userId) && c.DriverID == messageDto.ReceiverID)
+                (c.ReceiverID == messageDto.ReceiverID && c.SenderID == Convert.ToInt16(userId)) ||
+                (c.ReceiverID == Convert.ToInt16(userId) && c.SenderID == messageDto.ReceiverID)
             );
 
             if (chat != null)
@@ -141,8 +141,8 @@ namespace U_Ride.Controllers
                 // Create a new chat
                 chat = new Chat
                 {
-                    StudentID = messageDto.ReceiverID,
-                    DriverID = Convert.ToInt16(userId),
+                    ReceiverID = messageDto.ReceiverID,
+                    SenderID = Convert.ToInt16(userId),
                     StartedOn = DateTime.UtcNow,
                     Messages = new List<Message>
                     {
@@ -268,63 +268,139 @@ namespace U_Ride.Controllers
         }
         */
         // Get messages of a chat
+        //[Authorize]
+        //[HttpGet("StartMessages")]
+        //public async Task<IActionResult> StartMessages([FromQuery] int chatId)
+        //{
+        //    // Validate user ID from the token
+        //    var userIdClaim = User.FindFirst("UserID");
+        //    if (userIdClaim == null)
+        //    {
+        //        return Unauthorized(new { message = "User ID not found in token." });
+        //    }
+
+        //    var userId = Convert.ToInt16(userIdClaim.Value);
+
+        //    // Retrieve the chat and its messages
+        //    var chat = await _context.Chats
+        //        .Include(c => c.Messages).AsNoTracking()
+        //        .FirstOrDefaultAsync(c => c.ChatID == chatId);
+
+        //    if (chat == null)
+        //    {
+        //        return NotFound(new { message = "Chat not found." });
+        //    }
+
+        //    // Ensure the user is part of the chat
+        //    if (chat.StudentID != userId && chat.DriverID != userId)
+        //    {
+        //        return Unauthorized(new { message = "You are not authorized to view this chat." });
+        //    }
+
+        //    // Prepare a response in a user-friendly format
+        //    var response = new
+        //    {
+        //        ChatID = chat.ChatID,
+        //        Participants = new
+        //        {
+        //            StudentID = chat.StudentID,
+        //            DriverID = chat.DriverID
+        //        },
+        //        Messages = chat.Messages.OrderBy(m => m.SentOn).Select(m => new
+        //        {
+        //            MessageID = m.MessageID,
+        //            SenderID = m.SenderID,
+        //            MessageContent = m.MessageContent,
+        //            SentOn = m.SentOn.ToString("yyyy-MM-dd HH:mm:ss")
+        //        })
+        //    };
+
+        //    return Ok(response);
+        //}
+
+        // Join a chat group (SignalR specific)
         [Authorize]
-        [HttpGet("GetMessages")]
-        public async Task<IActionResult> GetMessages([FromQuery] int chatId)
+        [HttpPost("GetMessages")]
+        public async Task<IActionResult> GetMessages([FromBody] GetMessagesDto getMessagesDto)
         {
-            // Validate user ID from the token
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
             {
-                return Unauthorized(new { message = "User ID not found in token." });
+                return BadRequest(new { message = "User ID not found in token." });
             }
 
-            var userId = Convert.ToInt16(userIdClaim.Value);
+            var userId = userIdClaim.Value;
 
-            // Retrieve the chat and its messages
-            var chat = await _context.Chats
-                .Include(c => c.Messages).AsNoTracking()
-                .FirstOrDefaultAsync(c => c.ChatID == chatId);
-
-            if (chat == null)
+            if (getMessagesDto.ChatIDs == null || !getMessagesDto.ChatIDs.Any())
             {
-                return NotFound(new { message = "Chat not found." });
+                return BadRequest(new { message = "Chat ID list cannot be empty." });
             }
 
-            // Ensure the user is part of the chat
-            if (chat.StudentID != userId && chat.DriverID != userId)
-            {
-                return Unauthorized(new { message = "You are not authorized to view this chat." });
-            }
+            var chatMessages = new List<ChatInfoDto>();
 
-            // Prepare a response in a user-friendly format
-            var response = new
+            foreach (var chatId in getMessagesDto.ChatIDs)
             {
-                ChatID = chat.ChatID,
-                Participants = new
+                var chat = await _context.Chats.AsNoTracking()
+                    .Include(c => c.Messages)
+                    .FirstOrDefaultAsync(c => c.ChatID == chatId);
+
+                if (chat == null) continue; // Skip if chat not found
+
+                var lastMessage = chat.Messages
+                    .OrderByDescending(m => m.SentOn)
+                    .FirstOrDefault();
+
+                if (lastMessage == null) continue; // Skip if no messages
+
+                var receiver = await _context.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.UserID == (chat.ReceiverID == Convert.ToInt32(userId) ? chat.SenderID : chat.ReceiverID));
+
+
+                AuthDto.VehicleInfo? vehicleInfo = null;
+                if (receiver.HasVehicle == true)
                 {
-                    StudentID = chat.StudentID,
-                    DriverID = chat.DriverID
-                },
-                Messages = chat.Messages.OrderBy(m => m.SentOn).Select(m => new
+                    var vehicle = await _context.Vehicles.AsNoTracking()
+                        .FirstOrDefaultAsync(v => v.UserID == receiver.UserID);
+
+                    if (vehicle != null)
+                    {
+                        vehicleInfo = new AuthDto.VehicleInfo
+                        {
+                            VehicleType = vehicle.VehicleType,
+                            Make_Model = $"{vehicle.Make} {vehicle.Model}",
+                            LicensePlate = vehicle.LicensePlate
+                        };
+                    }
+                }
+
+                chatMessages.Add(new ChatInfoDto
                 {
-                    MessageID = m.MessageID,
-                    SenderID = m.SenderID,
-                    MessageContent = m.MessageContent,
-                    SentOn = m.SentOn.ToString("yyyy-MM-dd HH:mm:ss")
-                })
-            };
+                    ChatID = chat.ChatID,
+                    UserInfo = receiver == null ? null : new AuthDto.UserInfo
+                    {
+                        UserID = receiver.UserID,
+                        FullName = receiver.FullName,
+                        SeatNumber = receiver.SeatNumber,
+                        Gender = receiver.Gender,
+                        PhoneNumber = receiver.PhoneNumber,
+                        Vehicle = vehicleInfo
+                    },
+                    MessaageInfo = new MessaageInfoDto
+                    {
+                        MessageID = lastMessage.MessageID,
+                        MessageContent = lastMessage.MessageContent,
+                        SentOn = lastMessage.SentOn.ToString("yyyy-MM-dd HH:mm:ss")
+                    }
+                });
+            }
 
-            return Ok(response);
-        }
+            if (!chatMessages.Any())
+            {
+                return NotFound(new { message = "No messages found for the provided chat IDs." });
+            }
 
-
-        // Join a chat group (SignalR specific)
-        [HttpPost("JoinChat")]
-        public async Task<IActionResult> JoinChat([FromBody] JoinChatDto dto)
-        {
-            await _hubContext.Groups.AddToGroupAsync(dto.ConnectionId, dto.ChatId.ToString());
-            return Ok(new { message = "Joined chat group." });
+            return Ok(chatMessages);
         }
     }
 }
