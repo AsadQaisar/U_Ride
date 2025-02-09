@@ -297,15 +297,7 @@ namespace U_Ride.Controllers
             // If chat does not exist, create a new one
             if (chat == null)
             {
-                chat = new Chat
-                {
-                    SenderID = userId,
-                    ReceiverID = ReceiverId,
-                    StartedOn = DateTime.UtcNow
-                };
-
-                _context.Chats.Add(chat);
-                await _context.SaveChangesAsync();
+                return NotFound(new { message = "Chat not found." });
             }
 
             var response = new
