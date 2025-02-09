@@ -21,9 +21,11 @@
         public List<int>? ChatIDs { get; set; } = new List<int>();
     }
 
-    public class MessaageInfoDto
+    public class MessageInfoDto
     {
         public int MessageID { get; set; }
+
+        public int? SenderID { get; set; }
 
         public string? MessageContent { get; set; }
 
@@ -37,7 +39,7 @@
 
         public AuthDto.UserInfo? UserInfo { get; set; }
 
-        public MessaageInfoDto? MessaageInfo { get; set; }
+        public MessageInfoDto? MessageInfo { get; set; }
     }
 
 }

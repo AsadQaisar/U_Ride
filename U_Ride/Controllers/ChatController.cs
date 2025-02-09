@@ -267,58 +267,71 @@ namespace U_Ride.Controllers
             return Ok(message);
         }
         */
+
         // Get messages of a chat
-        //[Authorize]
-        //[HttpGet("StartMessages")]
-        //public async Task<IActionResult> StartMessages([FromQuery] int chatId)
-        //{
-        //    // Validate user ID from the token
-        //    var userIdClaim = User.FindFirst("UserID");
-        //    if (userIdClaim == null)
-        //    {
-        //        return Unauthorized(new { message = "User ID not found in token." });
-        //    }
+        [Authorize]
+        [HttpGet("StartChat")]
+        public async Task<IActionResult> StartChat([FromQuery] int ReceiverId)
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return Unauthorized(new { message = "User ID not found in token." });
+            }
 
-        //    var userId = Convert.ToInt16(userIdClaim.Value);
+            int userId = int.Parse(userIdClaim.Value);
 
-        //    // Retrieve the chat and its messages
-        //    var chat = await _context.Chats
-        //        .Include(c => c.Messages).AsNoTracking()
-        //        .FirstOrDefaultAsync(c => c.ChatID == chatId);
+            if (userId == ReceiverId)
+            {
+                return BadRequest(new { message = "You cannot start a chat with yourself." });
+            }
 
-        //    if (chat == null)
-        //    {
-        //        return NotFound(new { message = "Chat not found." });
-        //    }
+            // Check if a chat already exists between sender and receiver
+            var chat = await _context.Chats
+                .Include(c => c.Messages)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c =>
+                    (c.SenderID == userId && c.ReceiverID == ReceiverId) ||
+                    (c.SenderID == ReceiverId && c.ReceiverID == userId));
 
-        //    // Ensure the user is part of the chat
-        //    if (chat.StudentID != userId && chat.DriverID != userId)
-        //    {
-        //        return Unauthorized(new { message = "You are not authorized to view this chat." });
-        //    }
+            // If chat does not exist, create a new one
+            if (chat == null)
+            {
+                chat = new Chat
+                {
+                    SenderID = userId,
+                    ReceiverID = ReceiverId,
+                    StartedOn = DateTime.UtcNow
+                };
 
-        //    // Prepare a response in a user-friendly format
-        //    var response = new
-        //    {
-        //        ChatID = chat.ChatID,
-        //        Participants = new
-        //        {
-        //            StudentID = chat.StudentID,
-        //            DriverID = chat.DriverID
-        //        },
-        //        Messages = chat.Messages.OrderBy(m => m.SentOn).Select(m => new
-        //        {
-        //            MessageID = m.MessageID,
-        //            SenderID = m.SenderID,
-        //            MessageContent = m.MessageContent,
-        //            SentOn = m.SentOn.ToString("yyyy-MM-dd HH:mm:ss")
-        //        })
-        //    };
+                _context.Chats.Add(chat);
+                await _context.SaveChangesAsync();
+            }
 
-        //    return Ok(response);
-        //}
+            var response = new
+            {
+                ChatID = chat.ChatID,
+                Participants = new
+                {
+                    SenderID = chat.SenderID,
+                    ReceiverID = chat.ReceiverID
+                },
+                Messages = chat.Messages
+                    .OrderBy(m => m.SentOn)
+                    .Select(m => new
+                    {
+                        MessageID = m.MessageID,
+                        SenderID = m.SenderID,
+                        MessageContent = m.MessageContent,
+                        SentOn = m.SentOn.ToString("yyyy-MM-dd HH:mm:ss")
+                    })
+            };
 
-        // Join a chat group (SignalR specific)
+            return Ok(response);
+        }
+
+
+        // Get all chats of the user
         [Authorize]
         [HttpPost("GetMessages")]
         public async Task<IActionResult> GetMessages([FromBody] GetMessagesDto getMessagesDto)
@@ -386,9 +399,10 @@ namespace U_Ride.Controllers
                         PhoneNumber = receiver.PhoneNumber,
                         Vehicle = vehicleInfo
                     },
-                    MessaageInfo = new MessaageInfoDto
+                    MessageInfo = new MessageInfoDto
                     {
                         MessageID = lastMessage.MessageID,
+                        SenderID = lastMessage.SenderID,
                         MessageContent = lastMessage.MessageContent,
                         SentOn = lastMessage.SentOn.ToString("yyyy-MM-dd HH:mm:ss")
                     }
