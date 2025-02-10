@@ -1,4 +1,5 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -9,10 +10,12 @@ namespace U_Ride.Services
     public class JwtTokenService
     {
         private readonly IConfiguration _configuration;
+        private readonly ApplicationDbContext _context; // Inject database context
 
-        public JwtTokenService(IConfiguration configuration)
+        public JwtTokenService(IConfiguration configuration, ApplicationDbContext context)
         {
             _configuration = configuration;
+            _context = context;
         }
 
         public string GenerateToken(User user)
@@ -36,6 +39,11 @@ namespace U_Ride.Services
                 );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public async Task<bool> IsTokenBlacklisted(string token)
+        {
+            return await _context.BlacklistedTokens.AsNoTracking().AnyAsync(t => t.Token == token);
         }
     }
 }

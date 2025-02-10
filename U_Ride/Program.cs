@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using U_Ride.Data;
+using U_Ride.Middlewares;
 using U_Ride.Models;
 using U_Ride.Services;
 
@@ -66,6 +67,25 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(key)
     };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = async context =>
+        {
+            var token = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            if (!string.IsNullOrEmpty(token))
+            {
+                using var scope = context.HttpContext.RequestServices.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                bool isBlacklisted = await dbContext.BlacklistedTokens.AnyAsync(bt => bt.Token == token);
+                if (isBlacklisted)
+                {
+                    context.Fail("Token has been revoked.");
+                }
+            }
+        }
+    };
 });
 
 var app = builder.Build();
@@ -80,6 +100,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("reactApp");
+
+//Add JWT Blacklist Middleware BEFORE authentication
+app.UseMiddleware<JwtBlacklistMiddleware>();
 
 //app.UseAuthentication();
 

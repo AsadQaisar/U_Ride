@@ -330,5 +330,34 @@ namespace U_Ride.Controllers
             return Ok(userInfo);
 
         }
+
+        [Authorize]
+        [HttpPost("Logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return Unauthorized(new { message = "User ID not found in token." });
+            }
+
+            int userId = int.Parse(userIdClaim.Value);
+            var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                _context.BlacklistedTokens.Add(new BlacklistedToken
+                {
+                    UserID = userId,
+                    Token = token,
+                    RevokedOn = DateTime.UtcNow
+                });
+
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { message = "Logged out successfully." });
+        }
+
     }
 }

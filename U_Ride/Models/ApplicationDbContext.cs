@@ -18,5 +18,7 @@ namespace U_Ride.Models
 
         public DbSet<Message> Messages { get; set; }
 
+        public DbSet<BlacklistedToken> BlacklistedTokens { get; set; }
+
     }
 }
