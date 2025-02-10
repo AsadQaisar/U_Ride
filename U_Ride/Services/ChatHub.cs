@@ -107,9 +107,9 @@ namespace U_Ride.Services
         }
 
         // Add the user to the group based on their user ID
-        public async Task JoinGroup()
+        public async Task JoinRoom()
         {
-            var token = Context.GetHttpContext()?.Request.Query["access_token"];
+            var token = Context.GetHttpContext()?.Request.Headers["Authorization"];
 
             if (string.IsNullOrEmpty(token))
             {

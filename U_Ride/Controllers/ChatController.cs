@@ -175,9 +175,19 @@ namespace U_Ride.Controllers
 
             }
 
+            var lastMessage = chat.Messages.Last();
+
+            var messageInfoDto = new MessageInfoDto
+            {
+                MessageID = lastMessage.MessageID,
+                SenderID = Convert.ToInt32(userId),
+                MessageContent = messageDto.Message,
+                SentOn = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+
             // Send the message to the receiver's group
             await _hubContext.Clients.Group(messageDto.ReceiverID.ToString())
-                .SendAsync("ReceiveMessage", userId, messageDto.Message);
+                .SendAsync("ReceiveMessage", messageInfoDto);
 
             // Save changes (if a new message was added to an existing chat)
             await _context.SaveChangesAsync();
