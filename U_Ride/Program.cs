@@ -102,7 +102,7 @@ app.UseHttpsRedirection();
 app.UseCors("reactApp");
 
 //Add JWT Blacklist Middleware BEFORE authentication
-app.UseMiddleware<JwtBlacklistMiddleware>();
+//app.UseMiddleware<JwtBlacklistMiddleware>();
 
 //app.UseAuthentication();
 
