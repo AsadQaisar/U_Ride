@@ -41,7 +41,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<ApplicationDbContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("CloudConnection")));
 
 builder.Services.AddScoped<JwtTokenService>();
-builder.Services.AddHostedService<BlacklistedTokenCleanupService>();
+//builder.Services.AddHostedService<BlacklistedTokenCleanupService>();
 builder.Services.AddScoped<RideService>();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<SharedDb>();
