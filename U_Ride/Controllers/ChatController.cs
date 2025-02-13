@@ -31,11 +31,15 @@ namespace U_Ride.Controllers
         // </summary>
         // <param name="message"></param>
 
+        /*
+
         [HttpPost("{message}")]
         public void Post(string message)
         {
             _hubContext.Clients.All.SendAsync("publicMessageMethodName", message);
         }
+
+        */
 
         // <summary>
         // Send message to specific client
@@ -44,12 +48,18 @@ namespace U_Ride.Controllers
         // <param name="message"></param>
 
         /*
+         
         [HttpPost("SendPrivateMessage")]
         public void Post(SendMessageDto sendMessageDto)
         {
             _hubContext.Clients.Client(sendMessageDto.ConnectionID).SendAsync("privateMessageMethodName", sendMessageDto.Message);
         }
+
         */
+
+        //============================================================================================//
+
+        /*
 
         // APPROACH # 1: CLIENT ID TO SEND PRIVATE MESSAGE
 
@@ -73,6 +83,8 @@ namespace U_Ride.Controllers
 
             return NotFound(new { message = "User not connected." });
         }
+
+        */
 
         //============================================================================================//
 
@@ -196,87 +208,6 @@ namespace U_Ride.Controllers
         }
 
         //============================================================================================//
-
-        /*
-        // Start a new chat
-        [HttpPost("StartChat")]
-        [Authorize]
-        public async Task<IActionResult> StartChat([FromBody] StartChatDto dto)
-        {
-            var userIdClaim = User.FindFirst("UserID");
-            if (userIdClaim == null)
-            {
-                return BadRequest("User ID not found in token");
-            }
-
-            var userId = Convert.ToInt32(userIdClaim.Value);
-
-            // Check if the driver exists
-            var driver = await _context.Users.FirstOrDefaultAsync(u => u.UserID == dto.DriverId && u.HasVehicle == true);
-            if (driver == null)
-                return BadRequest("Driver not found or is not a driver.");
-
-            var chats = await _context.Chats.FirstOrDefaultAsync(c => c.StudentID == userId && c.DriverID == dto.DriverId);
-            if (chats != null)
-            {
-                chats.StartedOn = DateTime.UtcNow;
-            }
-            else
-            {
-                // Create a new chat entry
-                var chat = new Chat
-                {
-                    StudentID = userId,
-                    DriverID = dto.DriverId,
-                    StartedOn = DateTime.UtcNow
-                };
-                await _context.Chats.AddAsync(chat);
-            }
-
-            await _context.SaveChangesAsync();
-
-            // Notify the driver about the new chat (via SignalR)
-            await _hubContext.Clients.User(dto.DriverId.ToString()).SendAsync("NewChatStarted", chats.ChatID);
-
-            return Ok(new { chats.ChatID });
-        }
-
-        // Send a message
-        [HttpPost("SendMessage")]
-        [Authorize]
-        public async Task<IActionResult> SendMessage([FromBody] SendMessageDto dto)
-        {
-            var userIdClaim = User.FindFirst("UserID");
-            if (userIdClaim == null)
-            {
-                return BadRequest("User ID not found in token");
-            }
-
-            var userId = Convert.ToInt32(userIdClaim.Value);
-
-            var chat = await _context.Chats.FirstOrDefaultAsync(c => c.ChatID == dto.ChatId);
-            if (chat == null)
-                return NotFound("Chat not found.");
-
-            // Save the message to the database
-            var message = new Message
-            {
-                ChatID = dto.ChatId,
-                SenderID = userId,
-                MessageContent = dto.Message,
-                SentOn = DateTime.UtcNow
-            };
-
-            await _context.Messages.AddAsync(message);
-            await _context.SaveChangesAsync();
-
-            // Broadcast the message to the chat participants
-            await _hubContext.Clients.Group(dto.ChatId.ToString())
-                .SendAsync("ReceiveMessage", userId, dto.Message, message.SentOn);
-
-            return Ok(message);
-        }
-        */
 
         // Get messages of a chat
         [Authorize]
