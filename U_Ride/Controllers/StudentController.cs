@@ -186,10 +186,14 @@ namespace U_Ride.Controllers
                 Gender = userinfo.Gender,
                 PhoneNumber = userinfo.PhoneNumber
             };
-
+            var response = new
+            {
+                PassengerInfo = passenger,
+                Timer = 120
+            };
             // Send the message to the receiver's group
             await _hubContext.Clients.Group(ride.UserID.ToString())
-                .SendAsync("RideStatus", passenger, "This Passenger requested your ride.");
+                .SendAsync("RideStatus", response, "This Passenger requested your ride.");
 
             return Ok(new { Message = "Booking successful.", RideID = RideId, AvailableSeats = ride.AvailableSeats });
         }
