@@ -9,8 +9,11 @@ namespace U_Ride.Models
         public int BookingID { get; set; }
 
         public int RideID { get; set; }
-
+        
+        [Display(Name = "DriverID")]
         public int UserID { get; set; }
+
+        public int PassengerID { get; set; }
         
         public DateTime BookingDate { get; set; }
     }

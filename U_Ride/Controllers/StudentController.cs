@@ -131,6 +131,12 @@ namespace U_Ride.Controllers
             return Ok(matchingRides);
         }
 
+        //[HttpPost("CancelSearch")]
+        //[Authorize]
+        //public async Task<IActionResult> CancelSearch([FromQuery] )
+        //{
+
+        //}
 
         [HttpPost("BookRide")]
         [Authorize]
@@ -146,22 +152,10 @@ namespace U_Ride.Controllers
             var userinfo = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserID == userId);
             
             var ride = await _context.Rides.FindAsync(RideId);
-            if (ride == null || ride.IsAvailable == false) return NotFound(new { message = "Ride not available." });
-
-            // Deduct seat and update status
-            ride.AvailableSeats -= 1;
-            if (ride.AvailableSeats == 0)
-                ride.IsAvailable = false;
-
-            // Add booking
-            var booking = new Booking
+            if (ride == null || ride.IsAvailable == false || ride.AvailableSeats == 0)
             {
-                RideID = RideId,
-                UserID = Convert.ToInt16(userId),
-                BookingDate = DateTime.UtcNow
-            };
-            await _context.Bookings.AddAsync(booking);
-            await _context.SaveChangesAsync();
+                return NotFound(new { message = "Ride not available." });
+            }
 
             var passenger = new AuthDto.UserInfo
             {
@@ -174,7 +168,8 @@ namespace U_Ride.Controllers
 
             // Send the message to the receiver's group
             await _hubContext.Clients.Group(ride.UserID.ToString())
-                .SendAsync("ReceiveMessage", passenger, "This user booked your ride.");
+                .SendAsync("RideStatus", passenger, "This Passenger requested your ride.");
+
             return Ok(new { Message = "Booking successful.", RideID = RideId, AvailableSeats = ride.AvailableSeats });
         }
 
@@ -243,7 +238,7 @@ namespace U_Ride.Controllers
 
             // Send the message to the receiver's group
             await _hubContext.Clients.Group(ride.UserID.ToString())
-                .SendAsync("ReceiveMessage", passenger, "This user canceled ride with you.");
+                .SendAsync("ConfirmRide", passenger, "This user canceled ride with you.");
             return Ok(new { Message = "Ride canceled successfully.", RideID = RideId, AvailableSeats = ride.AvailableSeats });
         }
 

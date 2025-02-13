@@ -6,6 +6,7 @@ using U_Ride.DTOs;
 using U_Ride.Services;
 using Microsoft.EntityFrameworkCore;
 using static U_Ride.DTOs.RideDto;
+using Microsoft.AspNetCore.SignalR;
 
 namespace U_Ride.Controllers
 {
@@ -16,15 +17,17 @@ namespace U_Ride.Controllers
         private readonly ApplicationDbContext _context;
         private readonly JwtTokenService _tokenService;
         private readonly RideService _rideService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
         // Optimized constructor
-        public DriverController(JwtTokenService tokenService, ApplicationDbContext context, RideService rideService)
+        public DriverController(JwtTokenService tokenService, ApplicationDbContext context, RideService rideService, IHubContext<ChatHub> hubContext)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context)); // Ensure dependencies are not null
             _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
             _rideService = rideService ?? throw new ArgumentNullException(nameof(rideService));
-        }
+            _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
 
+        }
 
         [HttpPost("PostRide")]
         [Authorize]
@@ -199,7 +202,7 @@ namespace U_Ride.Controllers
 
         [HttpPost("ConfirmRides")]
         [Authorize]
-        public async Task<IActionResult> ConfirmRides([FromQuery] int RideId)
+        public async Task<IActionResult> ConfirmRides([FromQuery] int PassengerId)
         {
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
@@ -208,19 +211,58 @@ namespace U_Ride.Controllers
             }
 
             var userId = Convert.ToInt32(userIdClaim.Value);
+            var userinfo = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserID == userId);
 
             // Fetch the ride assigned to the driver
-            var ride = await _context.Rides.FirstOrDefaultAsync(r => r.RideID == RideId && r.UserID == userId);
-            if (ride == null)
+            var driverRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
+            var passengerRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == PassengerId);
+            if (driverRide == null || passengerRide == null)
             {
                 return NotFound(new { message = "Ride not found or unauthorized access." });
             }
+            if (driverRide.IsAvailable = false || driverRide.AvailableSeats == 0)
+            {
+                return NotFound(new { message = "Seats full or Ride unavailable."});
+            }
+            if (passengerRide.IsAvailable == false)
+            {
+                return NotFound(new { message = "Ride unavailable." });
+            }
 
-            ride.IsAvailable = false;
+            if (driverRide.AvailableSeats <= 0)
+            {
+                driverRide.IsAvailable = false;
+                await _context.SaveChangesAsync();
+                return BadRequest(new { Message = "Seats Full.", AvailableSeats = driverRide.AvailableSeats });
+            }
 
+            // Deduct seat and update status
+            driverRide.AvailableSeats -= 1;
+
+            // Add booking
+            var booking = new Booking
+            {
+                RideID = driverRide.RideID,
+                UserID = Convert.ToInt16(userId),
+                PassengerID = PassengerId,
+                BookingDate = DateTime.UtcNow
+            };
+            await _context.Bookings.AddAsync(booking);
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Ride Confirmed.", AvailableSeats = ride.AvailableSeats });
+            var passenger = new AuthDto.UserInfo
+            {
+                UserID = userinfo.UserID,
+                FullName = userinfo.FullName,
+                SeatNumber = userinfo.SeatNumber,
+                Gender = userinfo.Gender,
+                PhoneNumber = userinfo.PhoneNumber
+            };
+            // Send the message to the receiver's group
+            await _hubContext.Clients.Group(PassengerId.ToString())
+                .SendAsync("RideStatus", passenger, "Driver accepted your request.");
+
+            return Ok(new { Message = "Ride Confirmed.", AvailableSeats = driverRide.AvailableSeats });
         }
     }
 }
