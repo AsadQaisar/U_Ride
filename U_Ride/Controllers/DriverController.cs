@@ -141,6 +141,113 @@ namespace U_Ride.Controllers
             return Ok(matchingRides);
         }
 
+        
+        [HttpPost("AcceptRide")]
+        [Authorize]
+        public async Task<IActionResult> AcceptRide([FromQuery] int PassengerId)
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest(new { message = "User ID not found in token." });
+            }
+
+            int userId = Convert.ToInt32(userIdClaim.Value);
+
+            // Fetch user, driver ride, and passenger ride in a single query to reduce DB hits
+            var userRides = await _context.Rides
+                .Where(r => r.UserID == userId || r.UserID == PassengerId)
+                .ToListAsync();
+
+            var driverRide = userRides.FirstOrDefault(r => r.UserID == userId);
+            var passengerRide = userRides.FirstOrDefault(r => r.UserID == PassengerId);
+
+            if (driverRide == null || passengerRide == null)
+            {
+                return NotFound(new { message = "Ride not found or unauthorized access." });
+            }
+
+            // Avoid assignment inside the condition
+            if (!driverRide.IsAvailable || driverRide.AvailableSeats <= 0)
+            {
+                return BadRequest(new { message = "Seats full or Ride unavailable." });
+            }
+
+            if (!passengerRide.IsAvailable)
+            {
+                return BadRequest(new { message = "Passenger unavailable." });
+            }
+
+            // Deduct seat and update status
+            driverRide.AvailableSeats--;
+
+            if (driverRide.AvailableSeats == 0)
+            {
+                driverRide.IsAvailable = false;
+            }
+
+            // Add booking
+            var booking = new Booking
+            {
+                RideID = driverRide.RideID,
+                UserID = userId,
+                PassengerID = PassengerId,
+                BookingDate = DateTime.UtcNow
+            };
+
+            _context.Bookings.Add(booking);
+            await _context.SaveChangesAsync();
+
+            // Fetch user details in the same DB query
+            var userinfo = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.UserID == userId)
+                .Select(u => new AuthDto.UserInfo
+                {
+                    UserID = u.UserID,
+                    FullName = u.FullName,
+                    SeatNumber = u.SeatNumber,
+                    Gender = u.Gender,
+                    PhoneNumber = u.PhoneNumber
+                })
+                .FirstOrDefaultAsync();
+
+            // Send the message to the receiver's group
+            await _hubContext.Clients.Group(PassengerId.ToString())
+                .SendAsync("RideStatus", userinfo, "Driver accepted your request.");
+
+            return Ok(new { message = "Ride Confirmed.", availableSeats = driverRide.AvailableSeats });
+        }
+
+
+        [HttpPost("RejectRide")]
+        [Authorize]
+        public async Task<IActionResult> RejectRide([FromQuery] int PassengerId)
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest(new { message = "User ID not found in token." });
+            }
+
+            int userId = Convert.ToInt32(userIdClaim.Value);
+
+            // Fetch the ride assigned to the driver
+            var driverRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
+            var passengerRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == PassengerId);
+
+            if (driverRide == null || passengerRide == null)
+            {
+                return NotFound(new { message = "Ride not found or unauthorized access." });
+            }
+
+            // Send rejection message to the passenger
+            await _hubContext.Clients.Group(PassengerId.ToString())
+                .SendAsync("RideStatus", new { UserID = userId }, "Driver rejected your ride request.");
+
+            return Ok(new { message = "Ride request rejected." });
+        }
+
 
         [HttpPost("CompleteRide")]
         [Authorize]
@@ -197,72 +304,6 @@ namespace U_Ride.Controllers
                 Message = "Ride marked as completed successfully.",
                 RideID = RideId,
             });
-        }
-
-
-        [HttpPost("ConfirmRides")]
-        [Authorize]
-        public async Task<IActionResult> ConfirmRides([FromQuery] int PassengerId)
-        {
-            var userIdClaim = User.FindFirst("UserID");
-            if (userIdClaim == null)
-            {
-                return BadRequest(new { message = "User ID not found in token." });
-            }
-
-            var userId = Convert.ToInt32(userIdClaim.Value);
-            var userinfo = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserID == userId);
-
-            // Fetch the ride assigned to the driver
-            var driverRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
-            var passengerRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == PassengerId);
-            if (driverRide == null || passengerRide == null)
-            {
-                return NotFound(new { message = "Ride not found or unauthorized access." });
-            }
-            if (driverRide.IsAvailable = false || driverRide.AvailableSeats == 0)
-            {
-                return NotFound(new { message = "Seats full or Ride unavailable."});
-            }
-            if (passengerRide.IsAvailable == false)
-            {
-                return NotFound(new { message = "Ride unavailable." });
-            }
-
-            if (driverRide.AvailableSeats <= 0)
-            {
-                driverRide.IsAvailable = false;
-                await _context.SaveChangesAsync();
-                return BadRequest(new { Message = "Seats Full.", AvailableSeats = driverRide.AvailableSeats });
-            }
-
-            // Deduct seat and update status
-            driverRide.AvailableSeats -= 1;
-
-            // Add booking
-            var booking = new Booking
-            {
-                RideID = driverRide.RideID,
-                UserID = Convert.ToInt16(userId),
-                PassengerID = PassengerId,
-                BookingDate = DateTime.UtcNow
-            };
-            await _context.Bookings.AddAsync(booking);
-            await _context.SaveChangesAsync();
-
-            var passenger = new AuthDto.UserInfo
-            {
-                UserID = userinfo.UserID,
-                FullName = userinfo.FullName,
-                SeatNumber = userinfo.SeatNumber,
-                Gender = userinfo.Gender,
-                PhoneNumber = userinfo.PhoneNumber
-            };
-            // Send the message to the receiver's group
-            await _hubContext.Clients.Group(PassengerId.ToString())
-                .SendAsync("RideStatus", passenger, "Driver accepted your request.");
-
-            return Ok(new { Message = "Ride Confirmed.", AvailableSeats = driverRide.AvailableSeats });
         }
     }
 }

@@ -224,6 +224,13 @@ namespace U_Ride.Controllers
             // If the user is a driver, save vehicle details
             if (user.HasVehicle == true)
             {
+                // Validate seat capacity based on vehicle type
+                if ((reqVehicleDto.VehicleType.ToLower() == "bike" && reqVehicleDto.SeatCapacity > 1) ||
+                    (reqVehicleDto.VehicleType.ToLower() == "car" && reqVehicleDto.SeatCapacity > 4))
+                {
+                    return BadRequest(new { message = "Invalid seat capacity for the selected vehicle type." });
+                }
+
                 var existingVehicle = await _context.Vehicles.FirstOrDefaultAsync(v => v.UserID == userId);
                 if (existingVehicle != null)
                 {

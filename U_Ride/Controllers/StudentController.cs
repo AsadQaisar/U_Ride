@@ -131,12 +131,33 @@ namespace U_Ride.Controllers
             return Ok(matchingRides);
         }
 
-        //[HttpPost("CancelSearch")]
-        //[Authorize]
-        //public async Task<IActionResult> CancelSearch([FromQuery] )
-        //{
 
-        //}
+        [HttpPost("CancelSearch")]
+        [Authorize]
+        public async Task<IActionResult> CancelSearch()
+        {
+            var userIdClaim = User.FindFirst("UserID");
+            if (userIdClaim == null)
+            {
+                return BadRequest(new { message = "User ID not found in token." });
+            }
+
+            int userId = Convert.ToInt32(userIdClaim.Value);
+
+            // Fetch the ride assigned to the user
+            var ride = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
+            if (ride == null)
+            {
+                return NotFound(new { message = "Ride not found." });
+            }
+
+            // Update the availability flag
+            ride.IsAvailable = false;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Ride search canceled successfully." });
+        }
+
 
         [HttpPost("BookRide")]
         [Authorize]
@@ -174,6 +195,8 @@ namespace U_Ride.Controllers
         }
 
 
+        // This API is cuurently not in our scope.
+        // If user change it's mind at the very end (After driver accept the ride).
         [HttpPost("CancelRide")]
         [Authorize]
         public async Task<IActionResult> CancelRide([FromQuery] int RideId)
@@ -238,11 +261,12 @@ namespace U_Ride.Controllers
 
             // Send the message to the receiver's group
             await _hubContext.Clients.Group(ride.UserID.ToString())
-                .SendAsync("ConfirmRide", passenger, "This user canceled ride with you.");
+                .SendAsync("RideStatus", passenger, "This user canceled ride with you.");
             return Ok(new { Message = "Ride canceled successfully.", RideID = RideId, AvailableSeats = ride.AvailableSeats });
         }
 
-
+        /* 
+        // For Testing Purpose Only
         [HttpGet("Ride_Calculation")]
         public async Task<IActionResult> Ride_Calculation([FromBody] RideDto.PostRideDto postRideDto)
         {
@@ -271,5 +295,6 @@ namespace U_Ride.Controllers
             }
             return BadRequest();
         }
+        */
     }
 }

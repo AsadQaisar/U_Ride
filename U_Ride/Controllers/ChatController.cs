@@ -310,6 +310,32 @@ namespace U_Ride.Controllers
                 return NotFound(new { message = "Chat not found." });
             }
 
+            // Fetch receiver's ride info
+            var receiverRide = await _context.Rides
+                .Where(r => r.UserID == ReceiverId)
+                .Select(r => new RideDto.RideInfo
+                {
+                    RideID = r.RideID,
+                    StartPoint = r.StartPoint,
+                    EndPoint = r.EndPoint,
+                    EncodedPolyline = r.EncodedPolyline,
+                    AvailableSeats = r.AvailableSeats.ToString()
+                }).AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            // Fetch receiver's info
+            var userinfo = await _context.Users
+                .Where(u => u.UserID == ReceiverId)
+                .Select(u => new RideDto.UserInfo
+                {
+                    UserID = u.UserID,
+                    FullName = u.FullName,
+                    Gender = u.Gender,
+                    PhoneNumber = u.PhoneNumber,
+                    RideInfo = receiverRide
+                }).AsNoTracking()
+                .FirstOrDefaultAsync();
+
             var response = new
             {
                 ChatID = chat.ChatID,
@@ -318,6 +344,7 @@ namespace U_Ride.Controllers
                     SenderID = chat.SenderID,
                     ReceiverID = chat.ReceiverID
                 },
+                UserInfo = userinfo,
                 Messages = chat.Messages
                     .OrderBy(m => m.SentOn)
                     .Select(m => new
@@ -333,7 +360,6 @@ namespace U_Ride.Controllers
         }
 
 
-        // Get all chats of the user
         [Authorize]
         [HttpPost("GetMessages")]
         public async Task<IActionResult> GetMessages([FromBody] GetMessagesDto getMessagesDto)
@@ -344,11 +370,21 @@ namespace U_Ride.Controllers
                 return BadRequest(new { message = "User ID not found in token." });
             }
 
-            var userId = userIdClaim.Value;
+            var userId = Convert.ToInt32(userIdClaim.Value);
 
             if (getMessagesDto.ChatIDs == null || !getMessagesDto.ChatIDs.Any())
             {
                 return BadRequest(new { message = "Chat ID list cannot be empty." });
+            }
+
+            // Get the current user's HasVehicle status
+            var currentUser = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.UserID == userId);
+
+            if (currentUser == null)
+            {
+                return NotFound(new { message = "User not found." });
             }
 
             var chatMessages = new List<ChatInfoDto>();
@@ -361,22 +397,29 @@ namespace U_Ride.Controllers
 
                 if (chat == null) continue; // Skip if chat not found
 
+                // Get opponent user
+                var opponentId = chat.ReceiverID == userId ? chat.SenderID : chat.ReceiverID;
+                var opponent = await _context.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.UserID == opponentId);
+
+                // Skip chat if both users have the same HasVehicle value (either true or false)
+                if (opponent != null && currentUser.HasVehicle == opponent.HasVehicle)
+                {
+                    continue;
+                }
+
                 var lastMessage = chat.Messages
                     .OrderByDescending(m => m.SentOn)
                     .FirstOrDefault();
 
                 if (lastMessage == null) continue; // Skip if no messages
 
-                var receiver = await _context.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.UserID == (chat.ReceiverID == Convert.ToInt32(userId) ? chat.SenderID : chat.ReceiverID));
-
-
                 AuthDto.VehicleInfo? vehicleInfo = null;
-                if (receiver.HasVehicle == true)
+                if (opponent?.HasVehicle == true)
                 {
                     var vehicle = await _context.Vehicles.AsNoTracking()
-                        .FirstOrDefaultAsync(v => v.UserID == receiver.UserID);
+                        .FirstOrDefaultAsync(v => v.UserID == opponent.UserID);
 
                     if (vehicle != null)
                     {
@@ -392,13 +435,13 @@ namespace U_Ride.Controllers
                 chatMessages.Add(new ChatInfoDto
                 {
                     ChatID = chat.ChatID,
-                    UserInfo = receiver == null ? null : new AuthDto.UserInfo
+                    UserInfo = opponent == null ? null : new AuthDto.UserInfo
                     {
-                        UserID = receiver.UserID,
-                        FullName = receiver.FullName,
-                        SeatNumber = receiver.SeatNumber,
-                        Gender = receiver.Gender,
-                        PhoneNumber = receiver.PhoneNumber,
+                        UserID = opponent.UserID,
+                        FullName = opponent.FullName,
+                        SeatNumber = opponent.SeatNumber,
+                        Gender = opponent.Gender,
+                        PhoneNumber = opponent.PhoneNumber,
                         Vehicle = vehicleInfo
                     },
                     MessageInfo = new MessageInfoDto
@@ -418,5 +461,6 @@ namespace U_Ride.Controllers
 
             return Ok(chatMessages);
         }
+
     }
 }
