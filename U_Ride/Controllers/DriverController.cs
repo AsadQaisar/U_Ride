@@ -64,7 +64,7 @@ namespace U_Ride.Controllers
                 existingRide.Distance = postRideDto.Distance;
                 existingRide.AvailableSeats = availableSeats;
                 existingRide.Price = postRideDto.Price;
-                existingRide.LastModifiedOn = DateTime.UtcNow; 
+                existingRide.LastModifiedOn = DateTime.UtcNow;
             }
             else
             {
@@ -141,7 +141,7 @@ namespace U_Ride.Controllers
             return Ok(matchingRides);
         }
 
-        
+
         [HttpPost("AcceptRide")]
         [Authorize]
         public async Task<IActionResult> AcceptRide([FromBody] RejectMessagesDto rejectMessagesDto)
@@ -186,10 +186,25 @@ namespace U_Ride.Controllers
                 driverRide.IsAvailable = false;
 
                 // Notify all chat IDs in rejectMessagesDto.ChatIds that the seats are full
-                foreach (var chatId in rejectMessagesDto.ChatIDs)
+                foreach (var userID in rejectMessagesDto.UserIDs)
                 {
-                    await _hubContext.Clients.Group(chatId.ToString())
-                        .SendAsync("RideStatus", null, "The driver's seats are now fully booked.");
+                    if (userID != rejectMessagesDto.PassengerId)
+                    {
+                        var chat = await _context.Chats.Include(m => m.Messages).FirstOrDefaultAsync(c =>
+                            (c.ReceiverID == userID && c.SenderID == Convert.ToInt16(userId)) ||
+                            (c.ReceiverID == Convert.ToInt16(userId) && c.SenderID == userID)
+                        );
+
+                        if (chat != null)
+                        {
+                            // Delete Chat
+                            _context.Chats.Remove(chat);
+                            await _context.SaveChangesAsync();
+                        }
+
+                        await _hubContext.Clients.Group(userID.ToString())
+                            .SendAsync("RideStatus", null, "The driver's seats are now fully booked.");
+                    }
                 }
             }
 
@@ -242,7 +257,7 @@ namespace U_Ride.Controllers
             // Fetch the ride assigned to the driver
             var driverRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
             var passengerRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == PassengerId);
-            
+
             // Check if a chat exists between the student and the driver
             var chat = await _context.Chats.Include(m => m.Messages).FirstOrDefaultAsync(c =>
                 (c.ReceiverID == PassengerId && c.SenderID == Convert.ToInt16(userId)) ||

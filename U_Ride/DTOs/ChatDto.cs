@@ -25,7 +25,15 @@
     {
         public int PassengerId { get; set; }
 
-        public List<int>? ChatIDs { get; set; } = new List<int>();
+        public List<int>? UserIDs { get; set; } = new List<int>();
+    }
+
+    public class BookRideDto
+    {
+        public int RideId { get; set; }
+
+        public string? Price { get; set; }
+
     }
 
     public class MessageInfoDto

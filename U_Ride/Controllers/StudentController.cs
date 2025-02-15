@@ -161,7 +161,7 @@ namespace U_Ride.Controllers
 
         [HttpPost("BookRide")]
         [Authorize]
-        public async Task<IActionResult> BookRide([FromQuery] int RideId)
+        public async Task<IActionResult> BookRide([FromBody] BookRideDto bookRideDto)
         {
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
@@ -172,11 +172,14 @@ namespace U_Ride.Controllers
             var userId = Convert.ToInt32(userIdClaim.Value);
             var userinfo = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserID == userId);
             
-            var ride = await _context.Rides.FindAsync(RideId);
+            var ride = await _context.Rides.FindAsync(bookRideDto.RideId);
             if (ride == null || ride.IsAvailable == false || ride.AvailableSeats == 0)
             {
                 return NotFound(new { message = "Ride not available." });
             }
+            
+            // ride.Price = Convert.ToDouble(bookRideDto.Price);
+            // await _context.SaveChangesAsync();
 
             var passenger = new AuthDto.UserInfo
             {
@@ -189,6 +192,7 @@ namespace U_Ride.Controllers
             var response = new
             {
                 PassengerInfo = passenger,
+                Price = bookRideDto.Price,
                 Timer = 10 // Adjust accordingly
             };
 
@@ -196,9 +200,16 @@ namespace U_Ride.Controllers
             await _hubContext.Clients.Group(ride.UserID.ToString())
                 .SendAsync("RideStatus", response, "This Passenger requested your ride.");
 
-            return Ok(new { Message = "Booking successful.", RideID = RideId, AvailableSeats = ride.AvailableSeats, response.Timer });
-        }
+            var responseToReturn = new
+            {
+                RideID = bookRideDto.RideId,
+                AvailableSeats = ride.AvailableSeats,
+                response.Price,
+                response.Timer
+            };
 
+            return Ok(new { Message = "Booking successful.", responseToReturn });
+        }
 
         // This API is cuurently not in our scope.
         // If user change it's mind at the very end (After driver accept the ride).
