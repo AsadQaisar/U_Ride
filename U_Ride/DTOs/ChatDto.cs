@@ -21,6 +21,13 @@
         public List<int>? ChatIDs { get; set; } = new List<int>();
     }
 
+    public class RejectMessagesDto
+    {
+        public int PassengerId { get; set; }
+
+        public List<int>? ChatIDs { get; set; } = new List<int>();
+    }
+
     public class MessageInfoDto
     {
         public int MessageID { get; set; }

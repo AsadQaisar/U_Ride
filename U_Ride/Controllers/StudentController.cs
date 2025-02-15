@@ -189,13 +189,14 @@ namespace U_Ride.Controllers
             var response = new
             {
                 PassengerInfo = passenger,
-                Timer = 120
+                Timer = 10 // Adjust accordingly
             };
+
             // Send the message to the receiver's group
             await _hubContext.Clients.Group(ride.UserID.ToString())
                 .SendAsync("RideStatus", response, "This Passenger requested your ride.");
 
-            return Ok(new { Message = "Booking successful.", RideID = RideId, AvailableSeats = ride.AvailableSeats });
+            return Ok(new { Message = "Booking successful.", RideID = RideId, AvailableSeats = ride.AvailableSeats, response.Timer });
         }
 
 

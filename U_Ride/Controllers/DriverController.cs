@@ -144,7 +144,7 @@ namespace U_Ride.Controllers
         
         [HttpPost("AcceptRide")]
         [Authorize]
-        public async Task<IActionResult> AcceptRide([FromQuery] int PassengerId)
+        public async Task<IActionResult> AcceptRide([FromBody] RejectMessagesDto rejectMessagesDto)
         {
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
@@ -156,11 +156,11 @@ namespace U_Ride.Controllers
 
             // Fetch user, driver ride, and passenger ride in a single query to reduce DB hits
             var userRides = await _context.Rides
-                .Where(r => r.UserID == userId || r.UserID == PassengerId)
+                .Where(r => r.UserID == userId || r.UserID == rejectMessagesDto.PassengerId)
                 .ToListAsync();
 
             var driverRide = userRides.FirstOrDefault(r => r.UserID == userId);
-            var passengerRide = userRides.FirstOrDefault(r => r.UserID == PassengerId);
+            var passengerRide = userRides.FirstOrDefault(r => r.UserID == rejectMessagesDto.PassengerId);
 
             if (driverRide == null || passengerRide == null)
             {
@@ -184,6 +184,13 @@ namespace U_Ride.Controllers
             if (driverRide.AvailableSeats == 0)
             {
                 driverRide.IsAvailable = false;
+
+                // Notify all chat IDs in rejectMessagesDto.ChatIds that the seats are full
+                foreach (var chatId in rejectMessagesDto.ChatIDs)
+                {
+                    await _hubContext.Clients.Group(chatId.ToString())
+                        .SendAsync("RideStatus", null, "The driver's seats are now fully booked.");
+                }
             }
 
             // Add booking
@@ -191,7 +198,7 @@ namespace U_Ride.Controllers
             {
                 RideID = driverRide.RideID,
                 UserID = userId,
-                PassengerID = PassengerId,
+                PassengerID = rejectMessagesDto.PassengerId,
                 BookingDate = DateTime.UtcNow
             };
 
@@ -213,7 +220,7 @@ namespace U_Ride.Controllers
                 .FirstOrDefaultAsync();
 
             // Send the message to the receiver's group
-            await _hubContext.Clients.Group(PassengerId.ToString())
+            await _hubContext.Clients.Group(rejectMessagesDto.PassengerId.ToString())
                 .SendAsync("RideStatus", userinfo, "Driver accepted your request.");
 
             return Ok(new { message = "Ride Confirmed.", availableSeats = driverRide.AvailableSeats });
@@ -235,11 +242,21 @@ namespace U_Ride.Controllers
             // Fetch the ride assigned to the driver
             var driverRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
             var passengerRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == PassengerId);
+            
+            // Check if a chat exists between the student and the driver
+            var chat = await _context.Chats.Include(m => m.Messages).FirstOrDefaultAsync(c =>
+                (c.ReceiverID == PassengerId && c.SenderID == Convert.ToInt16(userId)) ||
+                (c.ReceiverID == Convert.ToInt16(userId) && c.SenderID == PassengerId)
+            );
 
-            if (driverRide == null || passengerRide == null)
+            if (driverRide == null || passengerRide == null || chat == null)
             {
                 return NotFound(new { message = "Ride not found or unauthorized access." });
             }
+
+            // Delete Chat
+            _context.Chats.Remove(chat);
+            await _context.SaveChangesAsync();
 
             // Send rejection message to the passenger
             await _hubContext.Clients.Group(PassengerId.ToString())
