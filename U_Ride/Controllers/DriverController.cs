@@ -267,6 +267,7 @@ namespace U_Ride.Controllers
             return Ok(new
             {
                 message = "Ride Confirmed.",
+                RideId = driverRide.RideID,
                 availableSeats = driverRide.AvailableSeats,
                 passengerinfo = passengerInfo
             });
@@ -314,7 +315,7 @@ namespace U_Ride.Controllers
 
         [HttpPost("CompleteRide")]
         [Authorize]
-        public async Task<IActionResult> CompleteRide([FromQuery] int RideId)
+        public async Task<IActionResult> CompleteRide([FromBody] CompleteRide completeRide)
         {
             var userIdClaim = User.FindFirst("UserID");
             if (userIdClaim == null)
@@ -325,7 +326,7 @@ namespace U_Ride.Controllers
             var userId = Convert.ToInt32(userIdClaim.Value);
 
             // Fetch the ride assigned to the driver
-            var ride = await _context.Rides.FirstOrDefaultAsync(r => r.RideID == RideId && r.UserID == userId);
+            var ride = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId);
             if (ride == null)
             {
                 return NotFound(new { message = "Ride not found or unauthorized access." });
@@ -342,7 +343,7 @@ namespace U_Ride.Controllers
 
             var rideWithVehicle = await (from r in _context.Rides
                                          join v in _context.Vehicles on r.UserID equals v.UserID
-                                         where r.RideID == RideId
+                                         where r.RideID == completeRide.RideId
                                          select new
                                          {
                                              Ride = r,
@@ -359,13 +360,20 @@ namespace U_Ride.Controllers
 
             Ride.AvailableSeats = vehicle.SeatCapacity - 1;
 
+            // Mark the passenger as unavailable
+            var passenger = await _context.Rides.FirstOrDefaultAsync(p => p.UserID == completeRide.PassengerId);
+            if (passenger != null)
+            {
+                passenger.IsAvailable = false;
+            }
+
             // Save changes to the database
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
                 Message = "Ride marked as completed successfully.",
-                RideID = RideId,
+                RideID = completeRide.RideId,
             });
         }
     }
