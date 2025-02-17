@@ -205,7 +205,7 @@ namespace U_Ride.Controllers
                         }
 
                         await _hubContext.Clients.Group(userID.ToString())
-                            .SendAsync("RejectRideStatus", null, "The driver's seats are now fully booked.");
+                            .SendAsync("RideStatus", null, "The driver's seats are now fully booked.");
                     }
                 }
             }
@@ -306,7 +306,7 @@ namespace U_Ride.Controllers
 
             // Send rejection message to the passenger
             await _hubContext.Clients.Group(PassengerId.ToString())
-                .SendAsync("RideStatus", new { UserID = userId }, "Driver rejected your ride request.");
+                .SendAsync("RejectRideStatus", new { UserID = userId }, "Driver rejected your ride request.");
 
             return Ok(new { message = "Ride request rejected." });
         }
