@@ -64,6 +64,7 @@ namespace U_Ride.Controllers
                 existingRide.Distance = postRideDto.Distance;
                 existingRide.AvailableSeats = availableSeats;
                 existingRide.Price = postRideDto.Price;
+                existingRide.IsAvailable = true;
                 existingRide.LastModifiedOn = DateTime.UtcNow;
             }
             else
@@ -78,6 +79,7 @@ namespace U_Ride.Controllers
                     Distance = postRideDto.Distance,
                     AvailableSeats = availableSeats,
                     Price = postRideDto.Price,
+                    IsAvailable = true,
                     CreatedOn = DateTime.UtcNow
                 };
                 await _context.Rides.AddAsync(newRide);
@@ -203,7 +205,7 @@ namespace U_Ride.Controllers
                         }
 
                         await _hubContext.Clients.Group(userID.ToString())
-                            .SendAsync("RideStatus", null, "The driver's seats are now fully booked.");
+                            .SendAsync("RejectRideStatus", null, "The driver's seats are now fully booked.");
                     }
                 }
             }
@@ -220,11 +222,39 @@ namespace U_Ride.Controllers
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
-            // Fetch user details in the same DB query
-            var userinfo = await _context.Users
+            // Fetch user details along with vehicle information
+            var driverinfo = await _context.Users
                 .AsNoTracking()
                 .Where(u => u.UserID == userId)
-                .Select(u => new AuthDto.UserInfo
+                .Select(u => new
+                {
+                    UserID = u.UserID,
+                    FullName = u.FullName,
+                    SeatNumber = u.SeatNumber,
+                    Gender = u.Gender,
+                    PhoneNumber = u.PhoneNumber,
+                    Vehicle = _context.Vehicles
+                        .Where(v => v.UserID == u.UserID)
+                        .Select(v => new
+                        {
+                            v.VehicleType,
+                            v.Make,
+                            v.Model,
+                            v.Color,
+                            v.LicensePlate
+                        }).FirstOrDefault()
+                })
+                .FirstOrDefaultAsync();
+
+            // Send the message to the receiver's group with user and vehicle info
+            await _hubContext.Clients.Group(rejectMessagesDto.PassengerId.ToString())
+                .SendAsync("ConfirmRideStatus", driverinfo, "Driver accepted your request.");
+
+            // Fetch passenger details for return
+            var passengerInfo = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.UserID == rejectMessagesDto.PassengerId)
+                .Select(u => new
                 {
                     UserID = u.UserID,
                     FullName = u.FullName,
@@ -234,11 +264,12 @@ namespace U_Ride.Controllers
                 })
                 .FirstOrDefaultAsync();
 
-            // Send the message to the receiver's group
-            await _hubContext.Clients.Group(rejectMessagesDto.PassengerId.ToString())
-                .SendAsync("RideStatus", userinfo, "Driver accepted your request.");
-
-            return Ok(new { message = "Ride Confirmed.", availableSeats = driverRide.AvailableSeats });
+            return Ok(new
+            {
+                message = "Ride Confirmed.",
+                availableSeats = driverRide.AvailableSeats,
+                passengerinfo = passengerInfo
+            });
         }
 
 

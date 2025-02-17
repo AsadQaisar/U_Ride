@@ -54,6 +54,7 @@ namespace U_Ride.Controllers
 
                 if (isDuplicate)
                 {
+                    // Error 409
                     return Conflict(new { message = "Seat Number or Phone Number is already in use by another user." });
                 }
 
@@ -78,6 +79,7 @@ namespace U_Ride.Controllers
 
                 if (existingUser != null)
                 {
+                    // Error 409
                     return Conflict(new { message = "User with the same Seat Number or Phone Number already exists." });
                 }
 
@@ -112,6 +114,7 @@ namespace U_Ride.Controllers
             if (user == null || !user.IsActive ||
                 _passwordHasher.VerifyHashedPassword(user, user.Password, loginDto.Password) == PasswordVerificationResult.Failed)
             {
+                // Error 401
                 return Unauthorized(new { message = "Invalid credentials or inactive account." });
             }
 
@@ -186,11 +189,30 @@ namespace U_Ride.Controllers
                 return NotFound(new { message = "User not found" });
             }
             user.HasVehicle = hasVehicle;
+
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
+
+            // Fetch vehicle details for return
+            var vehicleInfo = await _context.Vehicles
+                .AsNoTracking()
+                .Where(v => v.UserID == userId)
+                .Select(v => new
+                {
+                    v.VehicleType,
+                    v.Make,
+                    v.Model,
+                    v.Color,
+                    v.Year,
+                    v.LicensePlate,
+                    v.SeatCapacity
+                })
+                .FirstOrDefaultAsync();
+
             return Ok(new
             {
                 message = "User information updated.",
+                vehicleInfo = vehicleInfo ?? null,
                 isDriver = hasVehicle
             });
         }

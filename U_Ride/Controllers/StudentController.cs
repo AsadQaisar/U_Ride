@@ -49,6 +49,7 @@ namespace U_Ride.Controllers
                 existingRide.StartPoint = postRideDto.StartPoint;
                 existingRide.EndPoint = postRideDto.EndPoint;
                 existingRide.EncodedPolyline = postRideDto.EncodedPolyline;
+                existingRide.IsAvailable = true;
                 existingRide.LastModifiedOn = DateTime.UtcNow;
             }
             else
@@ -60,6 +61,7 @@ namespace U_Ride.Controllers
                     StartPoint = postRideDto.StartPoint,
                     EndPoint = postRideDto.EndPoint,
                     EncodedPolyline = postRideDto.EncodedPolyline,
+                    IsAvailable = true,
                     IsDriver = false,
                     CreatedOn = DateTime.UtcNow
                 };
