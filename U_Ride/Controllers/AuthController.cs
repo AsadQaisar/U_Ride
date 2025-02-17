@@ -114,8 +114,8 @@ namespace U_Ride.Controllers
             if (user == null || !user.IsActive ||
                 _passwordHasher.VerifyHashedPassword(user, user.Password, loginDto.Password) == PasswordVerificationResult.Failed)
             {
-                // Error 401
-                return Unauthorized(new { message = "Invalid credentials or inactive account." });
+                // Error 409
+                return Conflict(new { message = "Invalid credentials or inactive account." });
             }
 
             // Fetch associated vehicle info if the user has one
