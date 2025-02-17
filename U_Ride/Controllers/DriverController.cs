@@ -370,6 +370,10 @@ namespace U_Ride.Controllers
             // Save changes to the database
             await _context.SaveChangesAsync();
 
+            // Send completion message to the passenger
+            await _hubContext.Clients.Group(completeRide.PassengerId.ToString())
+                .SendAsync("CompleteRideStatus", null, "Your ride has been completed.");
+
             return Ok(new
             {
                 Message = "Ride marked as completed successfully.",
