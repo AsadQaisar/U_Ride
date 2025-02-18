@@ -173,15 +173,16 @@ namespace U_Ride.Controllers
 
             var userId = Convert.ToInt32(userIdClaim.Value);
             var userinfo = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserID == userId);
+            var passengerRide = await _context.Rides.FirstOrDefaultAsync(r => r.UserID == userId); 
             
             var ride = await _context.Rides.FindAsync(bookRideDto.RideId);
-            if (ride == null || ride.IsAvailable == false || ride.AvailableSeats == 0)
+            if (ride == null || ride.IsAvailable == false || ride.AvailableSeats == 0 || passengerRide == null)
             {
                 return NotFound(new { message = "Ride not available." });
             }
             
-            // ride.Price = Convert.ToDouble(bookRideDto.Price);
-            // await _context.SaveChangesAsync();
+            passengerRide.Price = Convert.ToDouble(bookRideDto.Price);
+            await _context.SaveChangesAsync();
 
             var passenger = new AuthDto.UserInfo
             {

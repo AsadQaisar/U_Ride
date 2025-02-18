@@ -162,7 +162,22 @@ namespace U_Ride.Controllers
                 .ToListAsync();
 
             var driverRide = userRides.FirstOrDefault(r => r.UserID == userId);
-            var passengerRide = userRides.FirstOrDefault(r => r.UserID == rejectMessagesDto.PassengerId);
+            
+            // Fetch passenger's ride details
+            var passengerRide = await _context.Rides
+                .AsNoTracking()
+                .Where(r => r.UserID == rejectMessagesDto.PassengerId)
+                .Select(r => new
+                {
+                    RideID = r.RideID,
+                    StartPoint = r.StartPoint,
+                    EndPoint = r.EndPoint,
+                    EncodedPolyline = r.EncodedPolyline,
+                    Distance = r.Distance,
+                    Price = r.Price,
+                    IsAvailable = r.IsAvailable
+                })
+                .FirstOrDefaultAsync();
 
             if (driverRide == null || passengerRide == null)
             {
@@ -268,7 +283,8 @@ namespace U_Ride.Controllers
             {
                 message = "Ride Confirmed.",
                 availableSeats = driverRide.AvailableSeats,
-                passengerinfo = passengerInfo
+                passengerinfo = passengerInfo,
+                passengerRide = passengerRide,
             });
         }
 
