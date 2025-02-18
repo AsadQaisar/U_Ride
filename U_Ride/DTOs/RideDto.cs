@@ -43,6 +43,12 @@ namespace U_Ride.DTOs
             public List<int> WayPoints { get; set; }
         }
 
+        public class CompleteRide
+        {
+            public int PassengerId { get; set; }
+
+            public int RideId { get; set; }
+        }
         //================================================================================//
 
         // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse);
